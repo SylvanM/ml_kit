@@ -1,6 +1,6 @@
 use matrix_kit::dynamic::matrix::Matrix;
 
-use crate::utility::activation::ActivationFunction;
+use crate::math::activation::ActivationFunction;
 
 /// A shorthand for NeuralNet
 pub type NN = NeuralNet;
@@ -83,7 +83,7 @@ mod tests {
 
     use matrix_kit::dynamic::matrix::Matrix;
 
-    use crate::utility::activation;
+    use crate::math::activation;
 
     use super::NeuralNet;
 
