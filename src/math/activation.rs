@@ -7,13 +7,15 @@ pub enum ActivationFunctionIdentifier {
     Sign,
     ReLu,
     Sigmoid,
+    Step,
 }
 
-const IDEN_LOOKUP_TABLE: [ActivationFunctionIdentifier ; 4] = [ 
+const IDEN_LOOKUP_TABLE: [ActivationFunctionIdentifier ; 5] = [ 
     ActivationFunctionIdentifier::Identity,
     ActivationFunctionIdentifier::Sign,
     ActivationFunctionIdentifier::ReLu,
-    ActivationFunctionIdentifier::Sigmoid
+    ActivationFunctionIdentifier::Sigmoid,
+    ActivationFunctionIdentifier::Step,
 ];
 
 impl ActivationFunctionIdentifier {
@@ -30,6 +32,7 @@ impl ActivationFunctionIdentifier {
             ActivationFunctionIdentifier::Sign      => 1,
             ActivationFunctionIdentifier::ReLu      => 2,
             ActivationFunctionIdentifier::Sigmoid   => 3,
+            ActivationFunctionIdentifier::Step      => 4,
         }
     }
 
@@ -40,6 +43,7 @@ impl ActivationFunctionIdentifier {
             ActivationFunctionIdentifier::Sign      => (Sign {}).evaluate(x),
             ActivationFunctionIdentifier::ReLu      => (ReLu {}).evaluate(x),
             ActivationFunctionIdentifier::Sigmoid   => (Sigmoid {}).evaluate(x),
+            ActivationFunctionIdentifier::Step      => (Step {}).evaluate(x),
         }
     }
 
@@ -50,6 +54,7 @@ impl ActivationFunctionIdentifier {
             ActivationFunctionIdentifier::Sign      => (Sign {}).derivative(x),
             ActivationFunctionIdentifier::ReLu      => (ReLu {}).derivative(x),
             ActivationFunctionIdentifier::Sigmoid   => (Sigmoid {}).derivative(x),
+            ActivationFunctionIdentifier::Step      => (Step {}).derivative(x),
         }
     }
 
@@ -117,5 +122,21 @@ impl ActivationFunction for Sigmoid {
 
     fn derivative(&self, x: f64) -> f64 {
         self.evaluate(x) * (1.0 - self.evaluate(x))
+    }
+}
+
+/// The Step function Function
+struct Step {}
+impl ActivationFunction for Step {
+    fn evaluate(&self, x: f64) -> f64 {
+        if x <= 0.0 {
+            0.0
+        } else {
+            1.0
+        }
+    }
+
+    fn derivative(&self, _x: f64) -> f64 {
+        0.0
     }
 }

@@ -223,17 +223,18 @@ mod tests {
 
     #[test]
     fn test_xor() {
-        let first_weights = Matrix::<f64>::from_flatmap(2, 2, vec![1.0, -1.0, 1.0, -1.0]);
-        let first_biases = Matrix::<f64>::from_flatmap(2, 1, vec![-0.5, 1.5]);
-        let second_weights = Matrix::<f64>::from_flatmap(1, 2, vec![1.0, 1.0]);
-        let second_biases = Matrix::<f64>::from_flatmap(1, 1, vec![-1.5]);
+        let mut file = match File::open("tests/files/xor.mlk_nn") {
+            Ok(f) => f,
+            Err(e) => panic!("Error opening file: {:?}", e),
+        };
+        let xor_nn = NeuralNet::from_file(&mut file);
 
-        let xor_nn = NeuralNet::new(vec![first_weights, second_weights], vec![first_biases, second_biases], vec![AFI::Sign, AFI::Sign]);
+        for x in [0, 1] {
+            for y in [0, 1] {
+                let output = xor_nn.compute_final_layer(Matrix::<f64>::from_flatmap(2, 1, vec![x as f64, y as f64])).get(0, 0) as u64;
+                println!("Output: {} ^ {} = {:?}", x, y, output);
 
-        for x in [0.0, 1.0] {
-            for y in [0.0, 1.0] {
-                println!("Input: {} ^ {}", x, y);
-                println!("Output: {:?}", xor_nn.compute_final_layer(Matrix::<f64>::from_flatmap(2, 1, vec![x, y])));
+                debug_assert_eq!(x ^ y, output)
             }
         }
     }
@@ -248,7 +249,7 @@ mod tests {
         let second_weights = Matrix::<f64>::from_flatmap(1, 2, vec![1.0, 1.0]);
         let second_biases = Matrix::<f64>::from_flatmap(1, 1, vec![-1.5]);
 
-        let xor_nn = NeuralNet::new(vec![first_weights, second_weights], vec![first_biases, second_biases], vec![AFI::Sign, AFI::Sign]);
+        let xor_nn = NeuralNet::new(vec![first_weights, second_weights], vec![first_biases, second_biases], vec![AFI::Sign, AFI::Step]);
 
         // Write this down!
         let mut file = match File::create("tests/files/xor.mlk_nn") {
