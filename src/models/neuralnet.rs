@@ -13,7 +13,7 @@ pub type NN = NeuralNet;
 /// specified activation function
 pub struct NeuralNet {
 
-    /// The weights on edges between nodes in two adjacent layers 
+    /// The weights on edges between nodes in two adjacent layers
     pub weights: Vec<Matrix<f64>>,
 
     /// The biases on nodes in each layer, except the first layer
@@ -40,8 +40,8 @@ impl NeuralNet {
         debug_assert!(
             (0..self.weights.len()).all(|layer|
                 self.biases[layer].col_count() == 1 &&
-                self.biases[layer].row_count() == self.weights[layer].row_count() &&
-                if layer == 0 { true } else {
+                self.biases[layer].row_count() == self.weights[layer] .row_count() 
+                && if layer == 0 { true } else {
                     self.weights[layer - 1].row_count() == self.weights[layer].col_count()
                 }
             )
@@ -203,7 +203,7 @@ impl NeuralNet {
             .map(|id| AFI::from_int(*id))
             .collect();
 
-        NeuralNet { weights, biases, activation_functions }
+        NeuralNet::new(weights, biases, activation_functions)
         
     }
 
@@ -214,16 +214,50 @@ mod tests {
     use std::{fs::File, vec};
 
     use matrix_kit::dynamic::matrix::Matrix;
-
-    use crate::math::activation::{ActivationFunctionIdentifier, AFI};
-
+    use crate::math::activation::AFI;
     use super::NeuralNet;
 
-    // MARK: Basic Tests
+    // MARK: File I/O Tests
+
+    #[test]
+    fn test_file_io() {
+
+        let first_weights   = Matrix::<f64>::from_flatmap(2, 2, vec![1.0, -1.0, 1.0, -1.0]);
+        let first_biases    = Matrix::<f64>::from_flatmap(2, 1, vec![-0.5, 1.5]);
+        let second_weights  = Matrix::<f64>::from_flatmap(1, 2, vec![1.0, 1.0]);
+        let second_biases   = Matrix::<f64>::from_flatmap(1, 1, vec![-1.5]);
+
+        let xor_nn = NeuralNet::new(
+            vec![first_weights, second_weights], 
+            vec![first_biases, second_biases], 
+            vec![AFI::Sign, AFI::Step]
+        );
+
+        // Write this down!
+        let mut file = match File::create("testing/files/xor.mlk_nn") {
+            Ok(f) => f,
+            Err(e) => panic!("Error opening file: {:?}", e),
+        };
+
+        xor_nn.write_to_file(&mut file);
+
+        // Now, attempt to read from the file, and make sure the nets are equal
+
+        let decoded_nn = NeuralNet::from_file(&mut File::open("testing/files/xor.mlk_nn").unwrap());
+
+        debug_assert_eq!(decoded_nn.layer_count(), xor_nn.layer_count());
+
+        for l in 0..(decoded_nn.layer_count() - 1) {
+            debug_assert_eq!(decoded_nn.weights[l], xor_nn.weights[l]);
+            debug_assert_eq!(decoded_nn.biases[l], xor_nn.biases[l]);
+            debug_assert_eq!(decoded_nn.activation_functions[l], xor_nn.activation_functions[l]);
+        }
+
+    }
 
     #[test]
     fn test_xor() {
-        let mut file = match File::open("tests/files/xor.mlk_nn") {
+        let mut file = match File::open("testing/files/xor.mlk_nn") {
             Ok(f) => f,
             Err(e) => panic!("Error opening file: {:?}", e),
         };
@@ -237,40 +271,6 @@ mod tests {
                 debug_assert_eq!(x ^ y, output)
             }
         }
-    }
-
-    // MARK: File I/O Tests
-
-    #[test]
-    fn test_file_io() {
-
-        let first_weights = Matrix::<f64>::from_flatmap(2, 2, vec![1.0, -1.0, 1.0, -1.0]);
-        let first_biases = Matrix::<f64>::from_flatmap(2, 1, vec![-0.5, 1.5]);
-        let second_weights = Matrix::<f64>::from_flatmap(1, 2, vec![1.0, 1.0]);
-        let second_biases = Matrix::<f64>::from_flatmap(1, 1, vec![-1.5]);
-
-        let xor_nn = NeuralNet::new(vec![first_weights, second_weights], vec![first_biases, second_biases], vec![AFI::Sign, AFI::Step]);
-
-        // Write this down!
-        let mut file = match File::create("tests/files/xor.mlk_nn") {
-            Ok(f) => f,
-            Err(e) => panic!("Error opening file: {:?}", e),
-        };
-
-        xor_nn.write_to_file(&mut file);
-
-        // Now, attempt to read from the file, and make sure the nets are equal
-
-        let decoded_nn = NeuralNet::from_file(&mut File::open("tests/files/xor.mlk_nn").unwrap());
-
-        debug_assert_eq!(decoded_nn.layer_count(), xor_nn.layer_count());
-
-        for l in 0..(decoded_nn.layer_count() - 1) {
-            debug_assert_eq!(decoded_nn.weights[l], xor_nn.weights[l]);
-            debug_assert_eq!(decoded_nn.biases[l], xor_nn.biases[l]);
-            debug_assert_eq!(decoded_nn.activation_functions[l], xor_nn.activation_functions[l]);
-        }
-
     }
 
 }

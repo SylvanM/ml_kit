@@ -1,4 +1,4 @@
-/// Don't want to keep typing this mouthful
+/// I don't want to keep typing this mouthful
 pub type AFI = ActivationFunctionIdentifier;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
