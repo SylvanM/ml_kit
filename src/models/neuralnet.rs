@@ -1,8 +1,9 @@
-use std::{fs::File, io::Write, mem::transmute, process::exit};
+use core::panic;
+use std::{fs::File, io::{Read, Write}, process::exit, vec};
 
 use matrix_kit::dynamic::matrix::Matrix;
 
-use crate::{math::activation::{ActivationFunctionIdentifier, AFI}, utility};
+use crate::{math::activation::AFI, utility};
 
 
 /// A shorthand for NeuralNet
@@ -86,6 +87,9 @@ impl NeuralNet {
 
     /// Writes this neural net to a file
     pub fn write_to_file(&self, file: &mut File) {
+
+        self.check_invariant(); // Wouldn't want to store a malformed neural net!
+
         let mut header = vec![0u64 ; 2 * self.layer_count() + 1];
         header[0] = self.layer_count() as u64;
 
@@ -139,7 +143,68 @@ impl NeuralNet {
 
     /// Reads a neural net from a file
     pub fn from_file(file: &mut File) -> NeuralNet {
+        // read first 8 bytes to see the size
+        let mut lc_buffer = [0u8 ; 8];
 
+        match file.read(&mut lc_buffer) {
+            Ok(_) => {},
+            Err(e) => panic!("Error reading layer cound: {:?}", e)
+        }
+
+        let layer_count = utility::file_utility::bytes_to_u64s(lc_buffer.to_vec())[0] as usize;
+
+        // buffer for layer sizes and activation function ID's
+        let mut lsa_buffer = vec![0u8 ; (layer_count + layer_count) * 8];
+
+        match file.read(&mut lsa_buffer) {
+            Ok(_) => {},
+            Err(e) => panic!("Error reading layer sizes: {:?}", e)
+        }
+
+        let layer_sizes_and_acts = utility::file_utility::bytes_to_u64s(lsa_buffer);
+
+        let mut weights = Vec::new();
+
+        // go through and get read some weight matrices!
+        for layer in 0..(layer_count - 1) {
+            let cols = layer_sizes_and_acts[layer] as usize;
+            let rows = layer_sizes_and_acts[layer + 1] as usize;
+            let mut mat_buff = vec![0u8; rows * cols * 8];
+
+            match file.read(&mut mat_buff) {
+                Ok(_) => {},
+                Err(e) => panic!("Error reading weight matrix {}: {:?}", layer, e)
+            }
+
+            let flatmap = utility::file_utility::bytes_to_floats(mat_buff);
+
+            weights.push(Matrix::from_flatmap(rows, cols, flatmap));
+        }
+
+        let mut biases = Vec::new();
+
+        // go through and get read some bias vectors!
+        for layer in 0..(layer_count - 1) {
+            let rows = layer_sizes_and_acts[layer + 1] as usize;
+            let mut vec_buff = vec![0u8; rows * 8];
+
+            match file.read(&mut vec_buff) {
+                Ok(_) => {},
+                Err(e) => panic!("Error reading bias vector {}: {:?}", layer, e)
+            }
+
+            let flatmap = utility::file_utility::bytes_to_floats(vec_buff);
+
+            biases.push(Matrix::from_flatmap(rows, 1, flatmap));
+        }
+
+        let activation_functions = layer_sizes_and_acts[layer_count..(2 * layer_count - 1)]
+            .iter()
+            .map(|id| AFI::from_int(*id))
+            .collect();
+
+        NeuralNet { weights, biases, activation_functions }
+        
     }
 
 }
@@ -201,6 +266,8 @@ mod tests {
 
         for l in 0..(decoded_nn.layer_count() - 1) {
             debug_assert_eq!(decoded_nn.weights[l], xor_nn.weights[l]);
+            debug_assert_eq!(decoded_nn.biases[l], xor_nn.biases[l]);
+            debug_assert_eq!(decoded_nn.activation_functions[l], xor_nn.activation_functions[l]);
         }
 
     }

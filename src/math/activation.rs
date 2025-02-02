@@ -1,7 +1,7 @@
 /// Don't want to keep typing this mouthful
 pub type AFI = ActivationFunctionIdentifier;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ActivationFunctionIdentifier {
     Identity,
     Sign,
