@@ -67,20 +67,27 @@ impl NeuralNet {
 
     /// Computes the output layer on a given input layer, using a specified
     /// activation function
-    pub fn compute_final_layer(&self, input: Matrix<f64>) -> Matrix<f64> {
+    pub fn compute_a_and_z(&self, input: Matrix<f64>) -> (Vec<Matrix<f64>>, Vec<Matrix<f64>>) {
 
         self.check_invariant();
         debug_assert_eq!(input.col_count(), 1);
         debug_assert_eq!(input.row_count(), self.weights[0].col_count());
+        
 
-        let mut current_output = input.clone();
+        let mut z_values: Vec<Matrix<f64>> = (0..(self.biases.len())).map(|i| Matrix::new(self.biases[i-1].row_count(), self.biases[i-1].col_count())).collect();
+        let mut a_values: Vec<Matrix<f64>> = (0..(self.biases.len() + 1)).map(|i| if i == 0 {input.clone()} else {Matrix::new(self.biases[i-1].row_count(), self.biases[i-1].col_count())}).collect();
 
         for layer in 0..self.weights.len() {
-            current_output = self.weights[layer].clone() * current_output + self.biases[layer].clone();
-            current_output.apply_to_all(&|x| self.activation_functions[layer].evaluate(x));
+            z_values[layer] = self.weights[layer].clone() * a_values[layer].clone() + self.biases[layer].clone();
+            a_values[layer+1] = z_values[layer].applying_to_all(&|x| self.activation_functions[layer].evaluate(x));
         }
 
-        current_output
+        (a_values, z_values)
+    }
+
+    
+    pub fn forward_pass(&self, input: Matrix<f64>) -> Matrix<f64> {
+        self.compute_a_and_z(input).1.last().unwrap().clone()
     }
 
     // MARK: File Utility
