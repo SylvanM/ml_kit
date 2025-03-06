@@ -4,11 +4,16 @@ fn print_image(image: &MnistImage) {
     println!("");
     for r in 0..image.image.row_count() {
         for c in 0..image.image.col_count() {
-            if image.image.get(c, r) > 0.0 {
-                // flip c and r to fix transpose
-                print!("@");
+            if image.image.get(c, r) <= 0.2 {
+                print!(" ")
+            } else if image.image.get(c, r) <= 0.4 {
+                print!("░")
+            } else if image.image.get(c, r) <= 0.6 {
+                print!("▒")
+            } else if image.image.get(c, r) <= 0.8 {
+                print!("▓")
             } else {
-                print!("*")
+                print!("█")
             }
         }
         println!("");
@@ -19,7 +24,7 @@ fn print_image(image: &MnistImage) {
 fn main() {
     let data = load_mnist("train");
     // note: image matrix is transposed (hard to find issue: could be parser, matrix library, or printer)
-    for i in 0..10 {
+    for i in 100..110 {
         print_image(&data[i]);
     }
 }
