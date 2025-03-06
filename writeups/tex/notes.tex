@@ -1,0 +1,153 @@
+\documentclass[12pt, letterpaper]{article}
+
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\usepackage{cancel}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amstext}
+\usepackage{amsthm}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{pgfplots}
+\usepackage{mdframed}
+\usepackage{nicefrac}
+\usepackage{dsfont}
+\usepackage{tikz}
+\usetikzlibrary{trees}
+\usepackage{mathdots}
+\usepackage{accents}
+\usepackage{mathtools}
+\usepackage{bbm}
+
+\usepackage{import}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[hidelinks]{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage[english]{babel}
+\usepackage{csquotes}
+
+\usepackage{xcolor}
+
+\usepackage[notes,backend=biber]{biblatex-chicago}
+
+% theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+
+\theoremstyle{remark}
+\newtheorem*{claim}{Claim}
+\newtheorem*{remark}{Remark}
+\newtheorem*{note}{Note}
+
+\setlength{\textwidth}{6.0in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\topmargin}{-0.5in}
+\setlength{\headheight}{0.25in}
+\setlength{\headsep}{0.25in}
+\setlength{\textheight}{8.5in}
+\setlength{\footskip}{20pt}
+
+\setlength{\topskip}{0in}
+
+\setcounter{secnumdepth}{0}
+
+\setlength{\parindent}{0in}	
+\setlength{\parskip}{0.1in}
+
+\newcommand{\vect}[1]{\vec{\mathbf{#1}}}
+\newcommand{\sectionbreak}{\clearpage}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\modop}{\;\text{mod}\;}
+\renewcommand{\mod}[1]{\;(\text{mod}\;#1)}
+\newcommand{\Aut}{\text{Aut}}
+\newcommand{\id}{\text{id}}
+\newcommand{\spn}{\;\text{span}}
+
+\newcommand{\ftntmk}{\textcolor{blue}{\footnotemark}}
+\newcommand{\black}[1]{\textcolor{black}{#1}}
+\newcommand{\ubcolor}[2]{\color{#1}{\underbrace{\color{black}{#2}}}}
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+            \node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
+
+\newcommand{\vol}[1]{\text{vol}}
+
+\newcommand{\verteq}{\rotatebox{90}{$\,=$}}
+\newcommand{\equalto}[2]{\underset{\scriptstyle\overset{\mkern4mu\verteq}{#2}}{#1}}
+
+\newcommand{\rk}{\text{rk}\,}
+\newcommand{\Col}{\text{Col}\,}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\actson}{\curvearrowright}
+
+\newcommand{\E}{\mathbb{E}}
+
+\renewcommand{\mapsto}{\longmapsto}
+
+% James - Parentheses, brackets, etc.
+\newcommand{\ignore}[1]{}  % from Charles
+\newcommand{\parens}[1]{\ensuremath{\left( #1 \right)}}
+\newcommand{\bracks}[1]{\ensuremath{\left[ #1 \right]}}
+\newcommand{\braces}[1]{\ensuremath{\left\{ #1 \right\}}}
+\newcommand{\angbrs}[1]{\ensuremath{\langle #1 \rangle}}
+\newcommand{\set}[1]{\braces{#1}}
+\newcommand{\powset}[1]{\mathcal{P}\parens{#1}}
+\newcommand{\vspan}[1]{\angbrs{#1}}  % 4330: Span of a set of vectors
+
+\newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
+\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
+\newcommand{\verts}[1]{\left\lvert #1 \right\rvert} % | #1 |
+\newcommand{\Verts}[1]{\left\lVert #1 \right\rVert} % || #1 ||
+\newcommand{\abs}[1]{\verts{#1}}
+\newcommand{\size}[1]{\verts{#1}}
+\newcommand{\norm}[1]{\Verts{#1}}
+
+\newcommand{\eps}{\varepsilon}
+\newcommand{\vphi}{\varphi}
+\renewcommand{\Re}{\mathrm{Re}}
+\renewcommand{\Im}{\mathrm{Im}}
+
+\newcommand{\bmat}[1]{\begin{bmatrix} #1 \end{bmatrix}}
+\newcommand{\pmat}[1]{\begin{pmatrix} #1 \end{pmatrix}}
+
+\title{A Machine Learning Library for Rust}
+\author{Owen Wetherbee, Ethan Ma, Sylvan Martin}
+\date{}
+
+\bibliography{bibliography}
+
+% Body
+
+\pgfplotsset{compat=1.16}
+\begin{document}
+
+\maketitle
+
+\begin{center}
+	This is a collection of notes from our meetings!
+\end{center}
+
+\tableofcontents
+
+\input{meetings/mar_5.tex}
+
+\end{document}
+
