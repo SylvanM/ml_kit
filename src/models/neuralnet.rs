@@ -67,28 +67,20 @@ impl NeuralNet {
 
     /// Computes the output layer on a given input layer, using a specified
     /// activation function
-    pub fn precompute_layers(&self, input: Matrix<f64>) -> (Vec<Matrix<f64>>, Vec<Matrix<f64>>) {
+    pub fn compute_final_layer(&self, input: Matrix<f64>) -> Matrix<f64> {
 
         self.check_invariant();
         debug_assert_eq!(input.col_count(), 1);
         debug_assert_eq!(input.row_count(), self.weights[0].col_count());
-        
 
-        let mut a_values: Vec<Matrix<f64>> = (0..(self.biases.len() + 1)).map(|i| if i == 0 {input.clone()} else {Matrix::new(self.biases[i-1].row_count(), self.biases[i-1].col_count())}).collect();
-        let mut sigma_dot_values: Vec<Matrix<f64>> = (0..(self.biases.len())).map(|i| Matrix::new(self.biases[i-1].row_count(), self.biases[i-1].col_count())).collect();
+        let mut current_output = input.clone();
 
         for layer in 0..self.weights.len() {
-            let z_values = self.weights[layer].clone() * a_values[layer].clone() + self.biases[layer].clone();
-            a_values[layer+1] = z_values.applying_to_all(&|x| self.activation_functions[layer].evaluate(x));
-            sigma_dot_values[layer] = z_values.applying_to_all(&|x| self.activation_functions[layer].derivative(x));
+            current_output = self.weights[layer].clone() * current_output + self.biases[layer].clone();
+            current_output.apply_to_all(&|x| self.activation_functions[layer].evaluate(x));
         }
 
-        (a_values, sigma_dot_values)
-    }
-
-
-    pub fn forward_pass(&self, input: Matrix<f64>) -> Matrix<f64> {
-        self.precompute_layers(input).1.last().unwrap().clone()
+        current_output
     }
 
     // MARK: File Utility
