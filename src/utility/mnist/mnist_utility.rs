@@ -124,3 +124,17 @@ pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
 
     DataSet { data_items: data }
 }
+
+#[cfg(test)]
+mod mnust_utility_tests {
+    use super::load_mnist;
+
+    #[test]
+    fn test_printing() {
+        let data = load_mnist("train");
+        // note: image matrix is transposed (hard to find issue: could be parser, matrix library, or printer)
+        for i in 100..110 {
+            println!("{:?}", data.data_items[i])
+        }
+    }
+}
