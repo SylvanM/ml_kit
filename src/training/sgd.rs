@@ -10,9 +10,7 @@ pub struct SGDTrainer<'a> {
     
     /// A reference to the neural network being trained
     pub neural_net: &'a NeuralNet,
-
-    /// A dataset on which to train
-
+    
 }
 
 impl<'a>  SGDTrainer<'a>  {
