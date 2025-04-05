@@ -28,3 +28,17 @@ fn main() {
         print_image(&data[i]);
     }
 }
+
+#[cfg(test)]
+mod mnist_tests {
+
+    #[test]
+    fn train_mnist() {
+
+        let network = 
+
+        let data = load_mnist("train");
+
+    }
+
+}

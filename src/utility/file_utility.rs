@@ -92,8 +92,8 @@ pub fn load_mnist(dataset_name: &str) -> Vec<MnistImage> {
 
         let image = Matrix::from_flatmap(n_rows, n_cols, flattened); // create matrix of image data
         data.push(MnistImage {
-            label: label,
-            image: image,
+            label,
+            image,
         }); // add label and image to vector of output data
     }
 
