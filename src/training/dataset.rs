@@ -3,7 +3,7 @@ use std::fmt::Debug;
 use matrix_kit::dynamic::matrix::Matrix;
 
 /// A training sample that has a correct input and output
-pub trait DataItem: Debug {
+pub trait DataItem: Debug + Clone {
 
     /// The input for this training item 
     fn input(&self) -> Matrix<f64>;

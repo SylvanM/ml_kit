@@ -5,6 +5,7 @@ use std::{fmt::{Debug, Write}, fs::File, io::prelude::*};
 use crate::training::dataset::{DataItem, DataSet};
 
 
+#[derive(Clone)]
 pub struct MNISTImage {
     /// A 28x28 grayscale image of a handwritten digit. The [0,0] entry is 
     /// the top-left corner of the image.

@@ -1,9 +1,9 @@
 use core::panic;
-use std::{fs::File, io::{Read, Write}, process::exit, vec};
+use std::{fmt::Debug, fs::File, io::{Read, Write}, os::macos::raw, process::exit, vec};
 
 use matrix_kit::dynamic::matrix::Matrix;
 
-use crate::{math::activation::AFI, utility};
+use crate::{math::activation::AFI, training::dataset::DataItem, utility};
 
 
 /// A shorthand for NeuralNet
@@ -11,6 +11,7 @@ pub type NN = NeuralNet;
 
 /// A Neural Network (multi-layer perceptron) classifier, with a 
 /// specified activation function
+#[derive(Clone)]
 pub struct NeuralNet {
 
     /// The weights on edges between nodes in two adjacent layers
@@ -22,6 +23,16 @@ pub struct NeuralNet {
     /// A list of the activation functions used in each layer of this network
     pub activation_functions: Vec<AFI>,
 
+}
+
+impl Debug for NeuralNet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("NeuralNet")
+            .field("weights", &self.weights)
+            .field("biases", &self.biases)
+            .field("activation_functions", &self.activation_functions)
+            .finish()
+    }
 }
 
 impl NeuralNet {
@@ -65,8 +76,16 @@ impl NeuralNet {
         self.weights.len() + 1
     }
 
-    /// Computes the output layer on a given input layer, using a specified
-    /// activation function
+    /// The shape of this neural network, with the 0th element 
+    /// of this array representing the size of the input
+    pub fn shape(&self) -> Vec<usize> {
+        let mut noninput_shape: Vec<usize> = self.biases.iter().map(|bias| bias.row_count()).collect();
+        let mut shape = vec![self.weights[0].col_count()];
+        shape.append(&mut noninput_shape);
+        shape
+    }
+
+    /// Computes the output layer on a given input layer
     pub fn compute_final_layer(&self, input: Matrix<f64>) -> Matrix<f64> {
 
         self.check_invariant();
@@ -81,6 +100,41 @@ impl NeuralNet {
         }
 
         current_output
+    }
+
+    /// Computes compute the activation of all layers of this network, WITHOUT 
+    /// the activation funtion being applied. (though it is applied to compute 
+    /// layer layers)
+    pub fn compute_raw_layers(&self, input: Matrix<f64>) -> Vec<Matrix<f64>> {
+
+        self.check_invariant();
+        debug_assert_eq!(input.col_count(), 1);
+        debug_assert_eq!(input.row_count(), self.weights[0].col_count());
+
+        let mut layers = Vec::new();
+
+        let mut current_output = input.clone();
+
+        for layer in 0..self.weights.len() {
+            current_output = self.weights[layer].clone() * current_output + self.biases[layer].clone();
+            layers.push(current_output.clone());
+            current_output.apply_to_all(&|x| self.activation_functions[layer].evaluate(x));
+        }
+
+        layers
+    }
+
+    /// Computes all raw activations as well as activations after the activation
+    /// function has been applied. (raw, full)
+    pub fn compute_raw_and_full_layers(&self, input: Matrix<f64>) -> (Vec<Matrix<f64>>, Vec<Matrix<f64>>) {
+        let raw_layers = self.compute_raw_layers(input);
+
+        let full_layers = (0..self.layer_count()).map(
+            |l| raw_layers[l]
+            .applying_to_all(&|x| self.activation_functions[l].evaluate(x))
+        ).collect();
+
+        (raw_layers, full_layers)
     }
 
     // MARK: File Utility
@@ -137,7 +191,6 @@ impl NeuralNet {
             }
 
         }
-
 
     }
 
