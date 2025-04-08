@@ -127,12 +127,14 @@ impl NeuralNet {
     /// Computes all raw activations as well as activations after the activation
     /// function has been applied. (raw, full)
     pub fn compute_raw_and_full_layers(&self, input: Matrix<f64>) -> (Vec<Matrix<f64>>, Vec<Matrix<f64>>) {
-        let raw_layers = self.compute_raw_layers(input);
+        let raw_layers = self.compute_raw_layers(input.clone());
 
-        let full_layers = (0..self.layer_count()).map(
+        let mut full_layers: Vec<Matrix<f64>> = (0..(self.layer_count() - 1)).map(
             |l| raw_layers[l]
             .applying_to_all(&|x| self.activation_functions[l].evaluate(x))
         ).collect();
+
+        full_layers.insert(0, input);
 
         (raw_layers, full_layers)
     }

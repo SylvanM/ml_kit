@@ -54,7 +54,7 @@ impl DataItem for MNISTImage {
         // of the digit i.
 
         let mut one_hot = Matrix::new(10, 1);
-        one_hot.set(self.correct_digit, 1, 1.0);
+        one_hot.set(self.correct_digit, 0, 1.0);
 
         one_hot
     }
