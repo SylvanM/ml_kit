@@ -114,6 +114,7 @@ impl NeuralNet {
         let mut layers = Vec::new();
 
         let mut current_output = input.clone();
+        layers.push(current_output.clone());
 
         for layer in 0..self.weights.len() {
             current_output = self.weights[layer].clone() * current_output + self.biases[layer].clone();

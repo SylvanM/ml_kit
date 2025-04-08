@@ -120,14 +120,15 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         let mut gradient_wrt_activations = a.clone(); // This is basically our DP table!
 
         // Base case of DP table, compute all dC/da for each activation in the final layer
-        gradient_wrt_activations[layers - 1] = (a[layers].clone() - training_item.correct_output()) * 2.0;
+        gradient_wrt_activations[layers] = (a[layers].clone() - training_item.correct_output()) * 2.0;
         gradient.derivatives.biases[layers - 1] = dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers - 1].clone());
         gradient.derivatives.weights[layers - 1] = gradient.derivatives.biases[layers - 1].clone() * a[layers - 1].transpose();
 
-        // the rest now!
+        // the rest now! I want the indices to actually match the indices in the writeup as closely as possible.
 
-        for layer in 0..(layers - 1) {
-            gradient_wrt_activations[layer + 1] = neuralnet.weights[layer + 1].clone() * dot_sigma_z[layer + 2].hadamard(gradient_wrt_activations[layer + 2].clone());
+        for layer in (0..layers).rev() {
+            println!("Attempting to compute dC_0/da^({})", layer);
+            gradient_wrt_activations[layer] = neuralnet.weights[layer].transpose().clone() * dot_sigma_z[layer + 1].hadamard(gradient_wrt_activations[layer + 1].clone());
             gradient.derivatives.biases[layer] = dot_sigma_z[layer].hadamard(gradient_wrt_activations[layer].clone());
             gradient.derivatives.weights[layer] = gradient.derivatives.biases[layer].clone() * a[layer].clone();
         }
