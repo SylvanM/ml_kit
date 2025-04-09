@@ -110,10 +110,10 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         let layers = neuralnet.layer_count() - 1; // The number of non-input layers. (Denotes as L in the writeup)
 
         let (z, a) = neuralnet.compute_raw_and_full_layers(training_item.input());
-        let dot_sigma_z: Vec<Matrix<f64>> = (0..layers)
+        let dot_sigma_z: Vec<Matrix<f64>> = (1..=layers)
             .map(
                 |l| z[l].applying_to_all(
-                    &|x| neuralnet.activation_functions[l].derivative(x)
+                    &|x| neuralnet.activation_functions[l - 1].derivative(x)
                 )
             ).collect();
 
@@ -121,16 +121,15 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
         // Base case of DP table, compute all dC/da for each activation in the final layer
         gradient_wrt_activations[layers] = (a[layers].clone() - training_item.correct_output()) * 2.0;
-        gradient.derivatives.biases[layers - 1] = dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers - 1].clone());
+        gradient.derivatives.biases[layers - 1] = dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers].clone());
         gradient.derivatives.weights[layers - 1] = gradient.derivatives.biases[layers - 1].clone() * a[layers - 1].transpose();
 
         // the rest now! I want the indices to actually match the indices in the writeup as closely as possible.
 
         for layer in (0..layers).rev() {
-            println!("Attempting to compute dC_0/da^({})", layer);
-            gradient_wrt_activations[layer] = neuralnet.weights[layer].transpose().clone() * dot_sigma_z[layer + 1].hadamard(gradient_wrt_activations[layer + 1].clone());
-            gradient.derivatives.biases[layer] = dot_sigma_z[layer].hadamard(gradient_wrt_activations[layer].clone());
-            gradient.derivatives.weights[layer] = gradient.derivatives.biases[layer].clone() * a[layer].clone();
+            gradient_wrt_activations[layer] = neuralnet.weights[layer].transpose().clone() * dot_sigma_z[layer].hadamard(gradient_wrt_activations[layer + 1].clone());
+            gradient.derivatives.biases[layer] = dot_sigma_z[layer].hadamard(gradient_wrt_activations[layer + 1].clone());
+            gradient.derivatives.weights[layer] = gradient.derivatives.biases[layer].clone() * a[layer].transpose().clone();
         }
 
         gradient
@@ -141,6 +140,8 @@ impl<DI: DataItem> SGDTrainer<DI>  {
     pub fn sgd_batch_step(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, learning_rate: f64) -> f64 {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
+
+        println!("Batch size: {}", batch.len());
 
         for item in batch {
             gradient += Self::compute_gradient(item, neuralnet);
@@ -217,10 +218,10 @@ mod sgd_tests {
 
         // Now, train it a bit!
 
-        for i in 1..=100 {
+        for i in 1..=1 {
             print!("Training iteration {}... ", i);
 
-            trainer.sgd_batch_step(trainer.data_set.data_items.clone(), &mut network, learning_rate);
+            trainer.sgd_batch_step(trainer.data_set.data_items[0..100].to_vec(), &mut network, learning_rate);
 
             let new_cost = trainer.cost(&network);
 

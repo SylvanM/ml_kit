@@ -131,7 +131,7 @@ impl NeuralNet {
         let raw_layers = self.compute_raw_layers(input.clone());
 
         let mut full_layers: Vec<Matrix<f64>> = (0..(self.layer_count() - 1)).map(
-            |l| raw_layers[l]
+            |l| raw_layers[l + 1]
             .applying_to_all(&|x| self.activation_functions[l].evaluate(x))
         ).collect();
 
