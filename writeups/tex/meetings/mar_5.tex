@@ -29,6 +29,8 @@ Let $W^{(\ell)}$ be the matrix defined by
         \end{array}
     \right]
 \]
+Viewed as a linear transformation, this is $W^{(\ell)}: \R^{n_{\ell - 1}} \to \R^{n_\ell}$, and so its dimension is $n_{\ell} \times n_{\ell - 1}$.
+
 Let $b_i^{(\ell)}$ be the bias associated with the $i$-th node of layer $\ell$.
 Each layer of the network has a ``squishification function'' written as $\sigma^{(\ell)}$, so computing the activation $a_i^{(\ell)}$ can 
 be written as 
@@ -39,7 +41,7 @@ be written as
 \]
 where we let 
 \[
-    z_i^{(\ell)} = b_i^{(\ell)} + \sum_{j = 1}^{n_{\ell - 1}} w_{ij} \, a_j^{(\ell)}
+    z_i^{(\ell)} = b_i^{(\ell)} + \sum_{j = 1}^{n_{\ell - 1}} w_{ij} \, a_j^{(\ell - 1)}
 \]
 We can also write this more succinctly as  
 \[
@@ -145,7 +147,7 @@ However, if we try to find an expression for the same derivative but in a previo
     \frac{\partial C_0}{\partial a_k^{(\ell - 1)}} = \sum_{j = 1}^{n_\ell} \frac{\partial z_j^{(\ell)}}{\partial a_i^{(\ell - 1)}} \cdot 
                                                                              \frac{\partial a_j^{(\ell)}}{\partial z_j^{(\ell)}} \cdot 
                                                                              \frac{\partial C_0}{\partial a_j^{(\ell)}}
-                                                   = \sum_{j = 1}^{n_\ell}  w_{jk^{(\ell)}} \dot\sigma^{(\ell)}(z_j^{(\ell)}) \cdot \frac{\partial C_0}{\partial a_j^{(\ell)}}
+                                                   = \sum_{j = 1}^{n_\ell}  w_{jk}^{(\ell)} \dot\sigma^{(\ell)}(z_j^{(\ell)}) \cdot \frac{\partial C_0}{\partial a_j^{(\ell)}}
 \]
 In matrix notation, this is 
 \[
