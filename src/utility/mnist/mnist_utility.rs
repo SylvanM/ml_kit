@@ -53,7 +53,7 @@ impl DataItem for MNISTImage {
         // with 10 entries, with index i being 1 iff this represents the image 
         // of the digit i.
 
-        let mut one_hot = Matrix::new(10, 1);
+        let mut one_hot: Matrix<f64> = Matrix::new(10, 1);
         one_hot.set(self.correct_digit, 0, 1.0);
 
         one_hot

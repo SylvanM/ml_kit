@@ -18,6 +18,7 @@ pub trait DataItem: Debug + Clone {
 
 /// A dataset type, which for now is really just a queue of 
 /// DataItems to output
+#[derive(Clone)]
 pub struct DataSet<T: DataItem> {
 
     /// Just a list of all the training items. This is fine for small sets,
