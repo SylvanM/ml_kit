@@ -160,7 +160,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
     /// Runs Gradient Descent on this Data Set, outputting
     /// a neural network
     pub fn train_gd(&self, neuralnet: &mut NeuralNet, shape: Vec<usize>, learning_rate: f64, threshold: f64) {
-
+        
     }
 
     /// Generates a random neural network of a particular shape
