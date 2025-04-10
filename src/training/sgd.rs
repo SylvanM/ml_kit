@@ -13,6 +13,7 @@ use rand::distr::weighted;
 use rand_distr::Distribution;
 use rand_distr::Uniform;
 
+use crate::math::loss::{LossFunction, SquaredLoss, LFI};
 use crate::{
     math::activation::AFI,
     models::neuralnet::{self, NeuralNet, NN},
@@ -116,7 +117,11 @@ impl<DI: DataItem> SGDTrainer<DI> {
     /// if you will. (This just keeps everything organized)
     ///
     /// TODO: Generalize this to think about more than just squared loss
-    pub fn compute_gradient(training_item: DI, neuralnet: &NeuralNet) -> NNGradient {
+    pub fn compute_gradient(
+        training_item: DI,
+        neuralnet: &NeuralNet,
+        loss_fn: &impl LossFunction,
+    ) -> NNGradient {
         let mut gradient = NNGradient {
             derivatives: neuralnet.clone(),
         };
@@ -132,7 +137,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
         // Base case of DP table, compute all dC/da for each activation in the final layer
         gradient_wrt_activations[layers] =
-            (a[layers].clone() - training_item.correct_output()) * 2.0;
+            loss_fn.derivative(&a[layers], &training_item.correct_output());
         gradient.derivatives.biases[layers - 1] =
             dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers].clone());
         gradient.derivatives.weights[layers - 1] =
@@ -159,14 +164,15 @@ impl<DI: DataItem> SGDTrainer<DI> {
         batch: Vec<DI>,
         neuralnet: &mut NeuralNet,
         learning_rate: f64,
+        loss_fn: &impl LossFunction,
     ) -> f64 {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
-        println!("Batch size: {}", batch.len());
+        // println!("Batch size: {}", batch.len());
 
         for item in batch {
-            gradient += Self::compute_gradient(item, neuralnet);
+            gradient += Self::compute_gradient(item, neuralnet, loss_fn);
         }
 
         let original_length = gradient.norm();
@@ -232,7 +238,7 @@ mod sgd_tests {
     use rand_distr::Uniform;
 
     use crate::{
-        math::activation::AFI,
+        math::{activation::AFI, SquaredLoss, LFI},
         utility::mnist::mnist_utility::{load_mnist, MNISTImage},
     };
 
@@ -247,7 +253,8 @@ mod sgd_tests {
             vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid],
         );
 
-        let learning_rate = 0.05;
+        let learning_rate: f64 = 0.05;
+        let loss_fn = SquaredLoss {};
 
         let original_cost = trainer.cost(&network);
         println!("Original NN cost: {}", original_cost);
@@ -261,41 +268,7 @@ mod sgd_tests {
                 trainer.data_set.data_items[0..100].to_vec(),
                 &mut network,
                 learning_rate,
-            );
-
-            let new_cost = trainer.cost(&network);
-
-            println!("cost is {}", new_cost);
-        }
-    }
-
-    #[test]
-    fn test_sgd() {
-        println!("Starting test_sgd");
-        let dataset: crate::training::dataset::DataSet<MNISTImage> = load_mnist("train");
-        let trainer = SGDTrainer::new(dataset.clone());
-        let mut network = trainer.random_network(
-            vec![784, 16, 16, 10],
-            vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid],
-        );
-
-        let learning_rate = 0.05;
-
-        let original_cost = trainer.cost(&network);
-        println!("Original NN cost: {}", original_cost);
-
-        // Now, train it a bit!
-        let epochs = 5;
-        let rand_uni = rand_distr::Uniform::try_from(0..dataset.data_items.len()).unwrap();
-        let mut rng = rand::rng();
-        for i in 1..=epochs * dataset.data_items.len() {
-            print!("Training iteration {}... ", i);
-            let idx = rng.sample(rand_uni);
-            print!("Random index {}", idx);
-            trainer.sgd_batch_step(
-                trainer.data_set.data_items[idx..=idx].to_vec(),
-                &mut network,
-                learning_rate,
+                &loss_fn,
             );
 
             let new_cost = trainer.cost(&network);

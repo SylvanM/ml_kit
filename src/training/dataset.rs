@@ -27,4 +27,3 @@ pub struct DataSet<T: DataItem> {
     pub data_items: Vec<T>
 
 }
-

@@ -1,5 +1,6 @@
 use ml_kit::{
     math::activation::AFI,
+    math::loss::SquaredLoss,
     training::{self, sgd::SGDTrainer},
     utility::mnist::mnist_utility::{load_mnist, MNISTImage},
 };
@@ -21,8 +22,9 @@ fn main() {
     println!("Original NN cost: {}", original_cost);
 
     // Now, train it a bit!
-    let epochs = 5;
-    let rand_uni = rand_distr::Uniform::try_from(0..dataset.data_items.len()).unwrap();
+    let loss_fn = SquaredLoss {};
+    let epochs: usize = 5;
+    let rand_uni: Uniform<usize> = rand_distr::Uniform::try_from(0..dataset.data_items.len()).unwrap();
     let mut rng: rand::prelude::ThreadRng = rand::rng();
     for i in 1..=epochs * dataset.data_items.len() {
         let idx = rand_uni.sample(&mut rng);
@@ -31,10 +33,15 @@ fn main() {
             trainer.data_set.data_items[idx..=idx].to_vec(),
             &mut network,
             learning_rate,
+            &loss_fn,
         );
 
-        if i % dataset.data_items.len() == 0 {
+        if i % 10000 == 0 {
             println!("Iteration: {}", i);
+        }
+
+        if i % 60000 == 0 {
+            println!("Epoch {} cost: {}", i / 60000, trainer.cost(&network));
         }
     }
 
