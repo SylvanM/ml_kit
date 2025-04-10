@@ -10,6 +10,7 @@ use rand::distr::weighted;
 use rand_distr::Distribution;
 
 use crate::{math::activation::AFI, models::neuralnet::{self, NeuralNet, NN}};
+use crate::math::loss::{LossFunction, SquaredLoss, LFI};
 
 use super::dataset::{DataItem, DataSet};
 
@@ -104,7 +105,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
     /// if you will. (This just keeps everything organized)
     /// 
     /// TODO: Generalize this to think about more than just squared loss
-    pub fn compute_gradient(training_item: DI, neuralnet: &NeuralNet) -> NNGradient {
+    pub fn compute_gradient(training_item: DI, neuralnet: &NeuralNet, loss_fn: &impl LossFunction) -> NNGradient {
         let mut gradient = NNGradient { derivatives: neuralnet.clone() };
 
         let layers = neuralnet.layer_count() - 1; // The number of non-input layers. (Denotes as L in the writeup)
@@ -120,7 +121,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         let mut gradient_wrt_activations = a.clone(); // This is basically our DP table!
 
         // Base case of DP table, compute all dC/da for each activation in the final layer
-        gradient_wrt_activations[layers] = (a[layers].clone() - training_item.correct_output()) * 2.0;
+        gradient_wrt_activations[layers] = loss_fn.derivative(&a[layers], &training_item.correct_output()); 
         gradient.derivatives.biases[layers - 1] = dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers].clone());
         gradient.derivatives.weights[layers - 1] = gradient.derivatives.biases[layers - 1].clone() * a[layers - 1].transpose();
 
@@ -137,14 +138,14 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Performs a step of GD on a mini-batch of data, returning the size 
     /// of the gradient vector (before rescaling) so we can see how far from a local minimum we are.
-    pub fn sgd_batch_step(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, learning_rate: f64) -> f64 {
+    pub fn sgd_batch_step(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, learning_rate: f64, loss_fn: &impl LossFunction) -> f64 {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
         println!("Batch size: {}", batch.len());
 
         for item in batch {
-            gradient += Self::compute_gradient(item, neuralnet);
+            gradient += Self::compute_gradient(item, neuralnet, loss_fn);
         }
 
         let original_length = gradient.norm();
@@ -212,6 +213,7 @@ mod sgd_tests {
         let mut network = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
 
         let learning_rate = 0.05;
+        let loss_fn = LFI::
 
         let original_cost = trainer.cost(&network);
         println!("Original NN cost: {}", original_cost);
@@ -221,7 +223,7 @@ mod sgd_tests {
         for i in 1..=1 {
             print!("Training iteration {}... ", i);
 
-            trainer.sgd_batch_step(trainer.data_set.data_items[0..100].to_vec(), &mut network, learning_rate);
+            trainer.sgd_batch_step(trainer.data_set.data_items[0..100].to_vec(), &mut network, learning_rate, &loss_fn);
 
             let new_cost = trainer.cost(&network);
 
