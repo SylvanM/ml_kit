@@ -3,15 +3,14 @@
 //!
 
 
-use core::num;
-use std::{alloc::Layout, ops::{AddAssign, DivAssign, SubAssign}, os::macos::raw};
+
+use std::ops::{AddAssign, SubAssign};
 
 use matrix_kit::dynamic::matrix::Matrix;
-use rand::distr::weighted;
 use rand_distr::Distribution;
 
-use crate::{math::activation::AFI, models::neuralnet::{self, NeuralNet, NN}};
-use crate::math::loss::{LossFunction, SquaredLoss, LFI};
+use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
+use crate::math::loss::LFI;
 
 use super::dataset::{DataItem, DataSet};
 
@@ -254,7 +253,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 mod sgd_tests {
     use std::fs::File;
 
-    use crate::{math::{activation::AFI, LFI}, utility::mnist::mnist_utility::{load_mnist, MNISTImage}};
+    use crate::{math::{activation::AFI, LFI}, utility::mnist::mnist_utility::load_mnist};
 
     use super::SGDTrainer;
 

@@ -1,5 +1,4 @@
-use core::num;
-use std::{f32::MIN, fmt::Debug, iter::{self, FromFn}};
+use std::{fmt::Debug, iter};
 
 use matrix_kit::dynamic::matrix::Matrix;
 use rand::seq::SliceRandom;
@@ -49,15 +48,17 @@ impl<T: DataItem> DataSet<T> {
         indices.shuffle(&mut rand_gen);
 
         let mut next_starting_index = 0;
+        let mut batch_count = 0;
 
         let iter = iter::from_fn(move || {
-            if next_starting_index >= self.data_items.len() {
+            if batch_count >= max_number || next_starting_index >= self.data_items.len() {
                 None
             } else {
                 let batch_indices = indices[next_starting_index..(min(next_starting_index + size, self.data_items.len()))].to_vec();
                 next_starting_index += size;
 
                 let batch: Vec<T> = batch_indices.iter().map(|i| self.data_items[*i].clone()).collect();
+                batch_count += 1;
                 Some(batch)
             }
         });

@@ -1,6 +1,6 @@
 use idx_parser::IDXFile;
 use matrix_kit::dynamic::matrix::Matrix;
-use std::{fmt::{Debug, Write}, fs::File, io::prelude::*};
+use std::{fmt::Debug, fs::File, io::prelude::*};
 
 use crate::training::dataset::{DataItem, DataSet};
 

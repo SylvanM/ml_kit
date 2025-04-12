@@ -1,9 +1,9 @@
 use core::panic;
-use std::{fmt::Debug, fs::File, io::{Read, Write}, os::macos::raw, process::exit, vec};
+use std::{fmt::Debug, fs::File, io::{Read, Write}, process::exit, vec};
 
 use matrix_kit::dynamic::matrix::Matrix;
 
-use crate::{math::activation::AFI, training::dataset::DataItem, utility};
+use crate::{math::activation::AFI, utility};
 
 
 /// A shorthand for NeuralNet
