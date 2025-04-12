@@ -252,33 +252,42 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
 #[cfg(test)]
 mod sgd_tests {
+    use std::fs::File;
+
     use crate::{math::{activation::AFI, LFI}, utility::mnist::mnist_utility::{load_mnist, MNISTImage}};
 
     use super::SGDTrainer;
 
 
     #[test]
-    fn test_network_stuff() {
-        let training_ds = load_mnist("train");
+    fn test_basic_digits_sgd() {
+        let dataset = load_mnist("train");
         let testing_ds = load_mnist("t10k");
-        let trainer = SGDTrainer::new(training_ds, testing_ds, LFI::Squared);
-        let mut network = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
+        let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
 
+        let mut neuralnet = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
+    
         let learning_rate = 0.05;
+        let epochs = 100;
 
-        let original_cost = trainer.cost(&network);
-        println!("Original NN cost: {}", original_cost);
+        let original_cost = trainer.cost(&neuralnet);
+        println!("Original cost: {}", original_cost);
 
-        // Now, train it a bit!
+        trainer.train_sgd(&mut neuralnet, learning_rate, epochs, 32);
 
-        for i in 1..=1 {
-            print!("Training iteration {}... ", i);
+        let final_cost = trainer.cost(&neuralnet);
 
-            trainer.sgd_batch_step(trainer.training_data_set.data_items[0..100].to_vec(), &mut network, learning_rate);
+        println!("Final cost: {}", final_cost);
 
-            let new_cost = trainer.cost(&network);
+        // Now, let's go through and actually try it out!
 
-            println!("cost is {}", new_cost);
+        trainer.display_behavior(&neuralnet, 10);
+
+        println!("Writing final network to testing folder.");
+
+        match File::create("testing/files/digits_nn.mlk_nn") {
+            Ok(mut f) => neuralnet.write_to_file(&mut f),
+            Err(e) => println!("Error writing to file: {:?}", e),
         }
     }
 }
