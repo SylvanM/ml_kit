@@ -3,6 +3,7 @@
 //!
 
 
+use core::num;
 use std::{alloc::Layout, ops::{AddAssign, DivAssign, SubAssign}, os::macos::raw};
 
 use matrix_kit::dynamic::matrix::Matrix;
@@ -19,10 +20,13 @@ use super::dataset::{DataItem, DataSet};
 pub struct SGDTrainer<DI: DataItem> {
     
     /// The dataset on which we train
-    pub data_set: DataSet<DI>,
+    pub training_data_set: DataSet<DI>,
+
+    /// The dataset on which we test
+    pub testing_data_set: DataSet<DI>,
 
     /// The loss function used
-    pub loss_function: LFI
+    pub loss_function: LFI,
 
 }
 
@@ -98,8 +102,8 @@ impl NNGradient {
 
 impl<DI: DataItem> SGDTrainer<DI>  {
 
-    pub fn new(data_set: DataSet<DI>, loss_function: LFI) -> SGDTrainer<DI> {
-        SGDTrainer { data_set, loss_function }
+    pub fn new(training_data_set: DataSet<DI>, testing_data_set: DataSet<DI>, loss_function: LFI) -> SGDTrainer<DI> {
+        SGDTrainer { training_data_set, testing_data_set, loss_function }
     }
 
     // MARK: Training
@@ -146,8 +150,6 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
-        println!("Batch size: {}", batch.len());
-
         for item in batch {
             gradient += self.compute_gradient(item, neuralnet);
         }
@@ -164,8 +166,18 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Runs Gradient Descent on this Data Set, outputting
     /// a neural network
-    pub fn train_gd(&self, neuralnet: &mut NeuralNet, shape: Vec<usize>, learning_rate: f64, threshold: f64) {
-        
+    pub fn train_sgd(&self, neuralnet: &mut NeuralNet, learning_rate: f64, epochs: usize, batch_size: usize) {
+        // Repeat for all epochs!
+
+        for epoch in 1..=epochs {
+            println!("Training Epoch {}...", epoch);
+
+            for batch in self.training_data_set.all_minibatches(batch_size) {
+                self.sgd_batch_step(batch, neuralnet, learning_rate);
+            }
+        }
+
+        println!("Completed all epochs of training.");
     }
 
     /// Generates a random neural network of a particular shape
@@ -188,18 +200,53 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         NeuralNet::new(weights, biases, activation_functions)
     }
 
-    /// The average cost over all training examples
+    // MARK: Testing
+
+    /// The average cost over all TESTING examples
     pub fn cost(&self, network: &NeuralNet) -> f64 {
         let mut average_cost = 0.0;
 
-        for item in self.data_set.data_items.clone() {
+        let ds = &self.testing_data_set;
+
+        for item in ds.data_items.clone() {
             let (x, y) = (item.input(), item.correct_output());
             let a = network.compute_final_layer(x);
-            average_cost += (a - y).l2_norm_squared()
+            average_cost += self.loss_function.loss(&a, &y);
         }
 
-        average_cost / (self.data_set.data_items.len() as f64)
+        average_cost / (ds.data_items.len() as f64)
     }   
+
+    /// The accuracy, as a percentage of testing items classified correctly
+    pub fn accuracy(&self, network: &NeuralNet) -> f64 {
+        let mut num_correct = 0;
+
+        for item in self.testing_data_set.data_items.clone() {
+            let (guess, _) = network.classify(item.input());
+
+            if guess == item.label() {
+                num_correct += 1;
+            }
+        }
+
+        (num_correct as f64) / (self.testing_data_set.data_items.len() as f64)
+    }
+
+    /// Samples a few data items and prints to the screen the behavior 
+    /// of the network
+    pub fn display_behavior(&self, network: &NeuralNet, num_items: usize) {
+        println!("Displaying network performance on {} testing items", num_items);
+
+        for item in self.testing_data_set.random_sample(num_items) {
+            println!("---Training Label: {} ---", item.name());
+            println!("{:?}", item);
+            println!("Network output: {:?}", network.classify(item.input()));
+        }
+        
+        println!("--------------------");
+        println!("Final cost: {}", self.cost(network));
+        println!("Classification accuracy: {}", self.accuracy(network));
+    }
 
 }
 
@@ -212,8 +259,9 @@ mod sgd_tests {
 
     #[test]
     fn test_network_stuff() {
-        let dataset = load_mnist("train");
-        let trainer = SGDTrainer::new(dataset, LFI::Squared);
+        let training_ds = load_mnist("train");
+        let testing_ds = load_mnist("t10k");
+        let trainer = SGDTrainer::new(training_ds, testing_ds, LFI::Squared);
         let mut network = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
 
         let learning_rate = 0.05;
@@ -226,7 +274,7 @@ mod sgd_tests {
         for i in 1..=1 {
             print!("Training iteration {}... ", i);
 
-            trainer.sgd_batch_step(trainer.data_set.data_items[0..100].to_vec(), &mut network, learning_rate);
+            trainer.sgd_batch_step(trainer.training_data_set.data_items[0..100].to_vec(), &mut network, learning_rate);
 
             let new_cost = trainer.cost(&network);
 

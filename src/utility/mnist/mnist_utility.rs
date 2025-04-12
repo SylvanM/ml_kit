@@ -59,8 +59,12 @@ impl DataItem for MNISTImage {
         one_hot
     }
 
-    fn label(&self) -> String {
+    fn name(&self) -> String {
         self.correct_digit.to_string()
+    }
+    
+    fn label(&self) -> usize {
+        self.correct_digit
     }
 
 }

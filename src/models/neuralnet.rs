@@ -140,6 +140,23 @@ impl NeuralNet {
         (raw_layers, full_layers)
     }
 
+    /// Computes the network's classification of a particular item, along with its confidence
+    pub fn classify(&self, input: Matrix<f64>) -> (usize, f64) {
+        let mut c = 0;
+        let mut max = 0.0;
+
+        let output = self.compute_final_layer(input);
+
+        for i in 0..output.row_count() {
+            if output.get(i, 0) > max {
+                max = output.get(i, 0);
+                c = i;
+            }
+        }
+
+        (c, max)
+    }
+
     // MARK: File Utility
 
     /// Writes this neural net to a file
