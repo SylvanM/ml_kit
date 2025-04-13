@@ -35,16 +35,3 @@ fn main() {
     }
 
 }
-
-fn train_digits_code() {
-    
-}
-
-#[test]
-fn test_fashion_database() {
-    let training = load_mnist("fashion", "train");
-    let testing = load_mnist("fashion", "t10k");
-
-    let trainer = SGDTrainer::new(training, testing, LFI::Squared);
-}
-
