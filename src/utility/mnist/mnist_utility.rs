@@ -116,7 +116,7 @@ pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
                     .try_into()
                     .expect("MNIST parsing error"); // get entry value
 
-                flattened.push(val as f64); // add entry to flattened matrix
+                flattened.push((val as f64) / 255.0); // add entry to flattened matrix
             }
         }
 
