@@ -69,10 +69,10 @@ impl DataItem for MNISTImage {
 
 }
 
-pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
+pub fn load_mnist(dataset_name: &str, prefix: &str) -> DataSet<MNISTImage> {
     // get image data
     let mut buf: Vec<u8> = vec![];
-    let mut file = File::open(format!("data/{}-images.idx3-ubyte", dataset_name)).unwrap();
+    let mut file = File::open(format!("data/{}/{}-images.idx3-ubyte", dataset_name, prefix)).unwrap();
     file.read_to_end(&mut buf).unwrap();
     let images_idx: IDXFile = IDXFile::from_bytes(buf).unwrap();
     let n_rows: usize = images_idx.dimensions[1].try_into().unwrap();
@@ -80,7 +80,7 @@ pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
 
     // get label data
     let mut buf: Vec<u8> = vec![];
-    let mut file = File::open(format!("data/{}-labels.idx1-ubyte", dataset_name)).unwrap();
+    let mut file = File::open(format!("data/{}/{}-labels.idx1-ubyte", dataset_name, prefix)).unwrap();
     file.read_to_end(&mut buf).unwrap();
     let labels_idx = IDXFile::from_bytes(buf).unwrap();
 
@@ -136,7 +136,7 @@ mod mnust_utility_tests {
 
     #[test]
     fn test_printing() {
-        let data = load_mnist("train");
+        let data = load_mnist("fashion", "train");
         // note: image matrix is transposed (hard to find issue: could be parser, matrix library, or printer)
         for i in 100..110 {
             println!("{:?}", data.data_items[i])
