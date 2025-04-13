@@ -4,8 +4,7 @@
 
 ## Quickstart 
 
-Go ahead and download the MNIST Digits database, either from whatever website 
-it's usually on or from this repository. Put it in a folder in your project
+Go ahead and download the MNIST Digits database, put it in a folder in your project
 so that the image and label files can be accessed via the path `data/digits/FILENAME.idx{1,3}-ubyte`.
 
 After having added `ml_kit` to your project via something like `cargo add ml_kit`,
@@ -20,8 +19,10 @@ use ml_kit::math::activation::AFI;
 
 fn main() {
 
-    let dataset = load_mnist("digits", "train");
-    let testing_ds = load_mnist("digits", "t10k");
+    let relative_path = "../Data sets/MNIST/digits";
+
+    let dataset = load_mnist(relative_path, "train");
+    let testing_ds = load_mnist(relative_path, "t10k");
     let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
 
     let mut neuralnet = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
