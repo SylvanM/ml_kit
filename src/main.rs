@@ -5,8 +5,10 @@ use ml_kit::math::activation::AFI;
 
 fn main() {
 
-    let dataset = load_mnist("digits", "train");
-    let testing_ds = load_mnist("digits", "t10k");
+    let relative_path = "../Data sets/MNIST/digits";
+
+    let dataset = load_mnist(relative_path, "train");
+    let testing_ds = load_mnist(relative_path, "t10k");
     let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
 
     let mut neuralnet = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
