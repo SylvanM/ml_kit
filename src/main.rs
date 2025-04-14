@@ -1,5 +1,6 @@
 use std::fs::File;
 
+use ml_kit::training::learning_rate::{FixedLR, TimeDecay};
 use ml_kit::{math::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
 use ml_kit::math::activation::AFI;
 
@@ -13,13 +14,13 @@ fn main() {
 
     let mut neuralnet = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
 
-    let learning_rate = 0.05;
+    let mut grad_update_sched = TimeDecay::new(1.0, 0.02);
     let epochs = 100;
 
     let original_cost = trainer.cost(&neuralnet);
     println!("Original cost: {}", original_cost);
 
-    trainer.train_sgd(&mut neuralnet, learning_rate, epochs, 32);
+    trainer.train_sgd(&mut neuralnet, &mut grad_update_sched, epochs, 32, true);
 
     let final_cost = trainer.cost(&neuralnet);
 

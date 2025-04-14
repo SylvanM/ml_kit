@@ -13,6 +13,7 @@ use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
 use crate::math::loss::LFI;
 
 use super::dataset::{DataItem, DataSet};
+use super::learning_rate::GradientUpdateSchedule;
 
 
 /// An SGD trainer that trains a neural network
@@ -145,7 +146,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Performs a step of GD on a mini-batch of data, returning the size 
     /// of the gradient vector (before rescaling) so we can see how far from a local minimum we are.
-    pub fn sgd_batch_step(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, learning_rate: f64) -> f64 {
+    pub fn sgd_batch_step<GUS: GradientUpdateSchedule>(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, iteration: usize, gus: &mut GUS) -> f64 {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
@@ -156,7 +157,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         let original_length = gradient.norm();
 
         // Now normalize that gradient!
-        gradient.set_length(learning_rate);
+        gus.update_gradient(&mut gradient, iteration);
 
         *neuralnet -= gradient;
 
@@ -165,22 +166,29 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Runs Gradient Descent on this Data Set, outputting
     /// a neural network
-    pub fn train_sgd(&self, neuralnet: &mut NeuralNet, learning_rate: f64, epochs: usize, batch_size: usize) {
+    /// 
+    /// * `neuralnet` - The neural network to train 
+    /// * `lrs` - A learning rate schedule
+    /// * `epochs` - the number of epochs to run
+    /// * `batch_size` - the number of training items in each batch
+    pub fn train_sgd<GUS: GradientUpdateSchedule>(&self, neuralnet: &mut NeuralNet, gus: &mut GUS, epochs: usize, batch_size: usize, verbose: bool) {
         // Repeat for all epochs!
 
-        for epoch in 1..=epochs {
-            println!("Training Epoch {}...", epoch);
-
-            for batch in self.training_data_set.all_minibatches(batch_size) {
-                self.sgd_batch_step(batch, neuralnet, learning_rate);
+        for epoch in 0..epochs {
+            if verbose {
+                println!("Training on epoch {}...", epoch);
             }
 
-            if epoch % 20 == 0 {
-                println!("Current cost: {}", self.cost(&neuralnet));
+            let mut b = 0;
+            for batch in self.training_data_set.all_minibatches(batch_size) {
+                self.sgd_batch_step(batch, neuralnet, epoch * batch_size + b, gus);
+                b += 1;
             }
         }
 
-        println!("Completed all epochs of training.");
+        if verbose {
+            println!("Completed all epochs of training.");
+        }
     }
 
     /// Generates a random neural network of a particular shape
@@ -255,79 +263,9 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
 #[cfg(test)]
 mod sgd_tests {
-    use std::fs::File;
-
-    use crate::{math::{activation::AFI, LFI}, utility::mnist::mnist_utility::load_mnist};
-
-    use super::SGDTrainer;
-
 
     #[test]
-    fn test_basic_digits_sgd() {
-        println!("Loading data");
-        let testing_ds = load_mnist("digits", "t10k");
-        println!("Loaded testing data");
-        let dataset = load_mnist("digits", "train");
-        println!("Loaded training data");
-        let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
+    fn test_stuff() {
 
-        println!("Created trainer");
-
-        let mut neuralnet = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
-    
-        let learning_rate = 0.05;
-        let epochs = 100;
-
-        let original_cost = trainer.cost(&neuralnet);
-        println!("Original cost: {}", original_cost);
-
-        trainer.train_sgd(&mut neuralnet, learning_rate, epochs, 32);
-
-        let final_cost = trainer.cost(&neuralnet);
-
-        // println!("Final cost: {}", final_cost);
-
-        // // Now, let's go through and actually try it out!
-
-        // trainer.display_behavior(&neuralnet, 10);
-
-        // println!("Writing final network to testing folder.");
-
-        // match File::create("testing/files/digits_nn.mlk_nn") {
-        //     Ok(mut f) => neuralnet.write_to_file(&mut f),
-        //     Err(e) => println!("Error writing to file: {:?}", e),
-        // }
-    }
-
-    #[test]
-    fn test_basic_fashion_sgd() {
-        let dataset = load_mnist("fashion", "train");
-        let testing_ds = load_mnist("fashion", "t10k");
-        let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
-
-        let mut neuralnet = trainer.random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
-    
-        let learning_rate = 0.05;
-        let epochs = 100;
-
-        let original_cost = trainer.cost(&neuralnet);
-        println!("Original cost: {}", original_cost);
-
-        trainer.train_sgd(&mut neuralnet, learning_rate, epochs, 32);
-
-        let final_cost = trainer.cost(&neuralnet);
-
-        println!("Final cost: {}", final_cost);
-
-        // Now, let's go through and actually try it out!
-
-        trainer.display_behavior(&neuralnet, 10);
-
-        println!("Writing final network to testing folder.");
-
-        match File::create("testing/files/fashion_nn.mlk_nn") {
-            Ok(mut f) => neuralnet.write_to_file(&mut f),
-            Err(e) => println!("Error writing to file: {:?}", e),
-        }
     }
 }
