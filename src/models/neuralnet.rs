@@ -2,6 +2,7 @@ use core::panic;
 use std::{fmt::Debug, fs::File, io::{Read, Write}, process::exit, vec};
 
 use matrix_kit::dynamic::matrix::Matrix;
+use rand_distr::Distribution;
 
 use crate::{math::activation::AFI, utility};
 
@@ -69,7 +70,56 @@ impl NeuralNet {
         nn
     }
 
+    /// Creates a new, empty neural network with all weights and biases
+    /// set to 0.
+    pub fn from_shape(shape: Vec<usize>, activation_functions: Vec<AFI>) -> NeuralNet {
+        let weights = (1..shape.len()).map(
+            |layer| {
+                Matrix::new(shape[layer], shape[layer - 1])
+            }
+        ).collect();
+        let biases = (1..shape.len()).map(
+            |layer| {
+                Matrix::new(shape[layer], 1)
+            }
+        ).collect();
+
+        NeuralNet { weights, biases, activation_functions }
+    }
+
+    /// Generates a random neural network of a particular shape
+    pub fn random_network(shape: Vec<usize>, activation_functions: Vec<AFI>) -> NeuralNet {
+        let mut rand_gen = rand::rng();
+        let normal = rand_distr::Normal::new(0.0, 1.0).unwrap(); // Tweak as needed!
+        let mut network = NeuralNet::from_shape(shape, activation_functions);
+
+        for l in 0..network.weights.len() {
+
+            for r in 0..network.weights[l].row_count() {
+                for c in 0..network.weights[l].col_count() {
+                    network.weights[l].set(r, c, normal.sample(&mut rand_gen));
+                }
+            }
+
+            for r in 0..network.biases[l].row_count() {
+                network.biases[l].set(r, 0, normal.sample(&mut rand_gen));
+            }
+        }
+
+        network
+    }
+
     // MARK: Methods
+
+    /// The total number of parameters in this neural network 
+    pub fn parameter_count(&self) -> usize {
+        let mut size = 0;
+        for l in 0..self.weights.len() {
+            size += self.weights[l].row_count() * self.weights[l].col_count();
+            size += self.biases[l].row_count();
+        }
+        size
+    }
     
     /// The amount of layers in this Neural Network, including the input layer
     pub fn layer_count(&self) -> usize {

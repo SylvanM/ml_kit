@@ -7,7 +7,6 @@
 use std::ops::{AddAssign, SubAssign};
 
 use matrix_kit::dynamic::matrix::Matrix;
-use rand_distr::Distribution;
 
 use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
 use crate::math::loss::LFI;
@@ -31,17 +30,7 @@ pub struct SGDTrainer<DI: DataItem> {
 }
 
 /// A Gradient representation
-/// 
-/// We just use another neural net as the represntation, because this makes sure 
-/// all the weight and bias gradients are well-orgaized. Each parameter in this 
-/// gradient neural net maps to the derivative of the cost function with respect 
-/// to the corresponding parameter of the original network.
-/// 
-/// Now, this let's us very intuitively "subtract" the gradient from our 
-/// neural network, which in some sense is "applying" the step of 
-/// gradient descent. This gradient is likely going to be normalized in 
-/// some way.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct NNGradient {
     pub derivatives: NeuralNet
 }
@@ -63,6 +52,27 @@ impl AddAssign for NNGradient {
             self.derivatives.weights[layer] += rhs.derivatives.weights[layer].clone();
             self.derivatives.biases[layer] += rhs.derivatives.biases[layer].clone();
         }
+    }
+}
+
+impl PartialEq for NNGradient {
+    fn eq(&self, other: &Self) -> bool {
+        if self.derivatives.shape() != other.derivatives.shape() {
+            return false;
+        } else {
+            for l in 0..self.derivatives.weights.len() {
+                if self.derivatives.weights[l] != other.derivatives.weights[l] {
+                    return false
+                }
+
+                if self.derivatives.biases[l] != other.derivatives.biases[l] {
+                    return false
+                }
+            }
+
+            return true;
+        }
+
     }
 }
 
@@ -98,6 +108,82 @@ impl NNGradient {
             self.derivatives.biases[layer] *= length;
         }
     }
+
+    pub fn as_vec(&self) -> Matrix<f64> {
+        
+        let mut grad = Matrix::new(self.derivatives.parameter_count(), 1);
+
+        let mut i = 0;
+        for l in 0..self.derivatives.weights.len() {
+            for r in 0..self.derivatives.weights[l].row_count() {
+                for c in 0..self.derivatives.weights[l].col_count() {
+                    grad.set(i, 0, self.derivatives.weights[l].get(r, c));
+                    i += 1;
+                }
+            }
+
+            for b in 0..self.derivatives.biases[l].row_count() {
+                grad.set(i, 0, self.derivatives.biases[l].get(b, 0));
+                i += 1;
+            }
+        }
+
+        debug_assert_eq!(i, self.derivatives.parameter_count());
+
+        grad
+    }
+
+    pub fn from_vec(grad: Matrix<f64>, shape: Vec<usize>) -> NNGradient {
+        let mut derivatives = NeuralNet::from_shape(shape.clone(), vec![AFI::Identity ; shape.len() - 1]);
+
+        let mut i = 0;
+        for l in 0..derivatives.weights.len() {
+            for r in 0..derivatives.weights[l].row_count() {
+                for c in 0..derivatives.weights[l].col_count() {
+                    derivatives.weights[l].set(r, c, grad.get(i, 0));
+                    i += 1;
+                }
+            }
+
+            for b in 0..derivatives.biases[l].row_count() {
+                derivatives.biases[l].set(b, 0, grad.get(i, 0));
+                i += 1;
+            }
+        }
+
+        NNGradient { derivatives }
+    }
+}
+
+#[cfg(test)]
+mod grad_tests {
+    use rand::Rng;
+
+    use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
+
+    use super::NNGradient;
+
+    #[test]
+    fn test_creation_inversion() {
+        let mut rng = rand::rng();
+
+        for _ in 0..10 {
+            let layers = rng.random_range(3..100);
+            let mut shape = vec![0 ; layers];
+            for l in 0..layers {
+                shape[l] = rng.random_range(3..100);
+            }
+
+            let derivatives = NeuralNet::random_network(shape.clone(), vec![AFI::Identity ; layers - 1]);
+
+            let gradient = NNGradient { derivatives };
+            let grad_vector = gradient.as_vec();
+            let new_gradient = NNGradient::from_vec(grad_vector, shape);
+
+            assert_eq!(gradient, new_gradient);
+        }
+    }
+
 }
 
 impl<DI: DataItem> SGDTrainer<DI>  {
@@ -146,7 +232,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Performs a step of GD on a mini-batch of data, returning the size 
     /// of the gradient vector (before rescaling) so we can see how far from a local minimum we are.
-    pub fn sgd_batch_step<GUS: GradientUpdateSchedule>(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, iteration: usize, gus: &mut GUS) -> f64 {
+    pub fn sgd_batch_step<GUS: GradientUpdateSchedule>(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, gus: &mut GUS) -> f64 {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
@@ -157,7 +243,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         let original_length = gradient.norm();
 
         // Now normalize that gradient!
-        gus.update_gradient(&mut gradient, iteration);
+        gus.next_gradient(&mut gradient);
 
         *neuralnet -= gradient;
 
@@ -179,36 +265,14 @@ impl<DI: DataItem> SGDTrainer<DI>  {
                 println!("Training on epoch {}...", epoch);
             }
 
-            let mut b = 0;
             for batch in self.training_data_set.all_minibatches(batch_size) {
-                self.sgd_batch_step(batch, neuralnet, epoch * batch_size + b, gus);
-                b += 1;
+                self.sgd_batch_step(batch, neuralnet, gus);
             }
         }
 
         if verbose {
             println!("Completed all epochs of training.");
         }
-    }
-
-    /// Generates a random neural network of a particular shape
-    pub fn random_network(&self, shape: Vec<usize>, activation_functions: Vec<AFI>) -> NeuralNet {
-        let mut rand_gen = rand::rng();
-        let normal = rand_distr::Normal::new(0.0, 1.0).unwrap(); // Tweak as needed!
-
-        let weights = (1..shape.len()).map(
-            |layer| {
-                Matrix::from_index_def(shape[layer], shape[layer - 1], &mut |_, _| normal.sample(&mut rand_gen))
-            }
-        ).collect();
-        let biases = (1..shape.len()).map(
-            |layer| {
-                Matrix::from_index_def(shape[layer], 1, &mut |_, _| normal.sample(&mut rand_gen))
-            }
-        ).collect();
-
-        // Initialize a random neural network
-        NeuralNet::new(weights, biases, activation_functions)
     }
 
     // MARK: Testing
