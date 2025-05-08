@@ -1,22 +1,25 @@
 use std::fs::File;
 
+use ml_kit::math::activation::AFI;
 use ml_kit::models::neuralnet::NeuralNet;
+//use ml_kit::training::learning_rate::FixedLR;
 use ml_kit::training::learning_rate::AdaGrad;
 use ml_kit::{math::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
-use ml_kit::math::activation::AFI;
 
 fn main() {
-
-    let relative_path = "../Data sets/MNIST/fashion";
+    let relative_path = "../data_sets";
 
     let dataset = load_mnist(relative_path, "train");
     let testing_ds = load_mnist(relative_path, "t10k");
     let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
 
-    let mut neuralnet = NeuralNet::random_network(vec![784, 16, 16, 10], vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid]);
+    let mut neuralnet = NeuralNet::random_network(
+        vec![784, 16, 16, 10],
+        vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid],
+    );
 
-    // let mut grad_update_sched = FixedLR::new(0.05);
-    let mut grad_update_sched = AdaGrad::new(0.05, neuralnet.parameter_count());
+    //let mut grad_update_sched = FixedLR::new(0.05);
+    let mut grad_update_sched = AdaGrad::new(0.01, neuralnet.parameter_count());
     let epochs = 100;
 
     let original_cost = trainer.cost(&neuralnet);
@@ -38,5 +41,4 @@ fn main() {
         Ok(mut f) => neuralnet.write_to_file(&mut f),
         Err(e) => println!("Error writing to file: {:?}", e),
     }
-
 }
