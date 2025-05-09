@@ -24,7 +24,8 @@ fn main() {
     // Now, train it a bit!
     let loss_fn = SquaredLoss {};
     let epochs: usize = 5;
-    let rand_uni: Uniform<usize> = rand_distr::Uniform::try_from(0..dataset.data_items.len()).unwrap();
+    let rand_uni: Uniform<usize> =
+        rand_distr::Uniform::try_from(0..dataset.data_items.len()).unwrap();
     let mut rng: rand::prelude::ThreadRng = rand::rng();
     for i in 1..=epochs * dataset.data_items.len() {
         let idx = rand_uni.sample(&mut rng);
