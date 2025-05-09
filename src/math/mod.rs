@@ -1,3 +1,3 @@
 pub mod activation;
 pub mod loss; 
-pub mod pca;
+pub mod svd;
