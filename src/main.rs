@@ -4,7 +4,7 @@ use ml_kit::math::activation::AFI;
 use ml_kit::models::neuralnet::NeuralNet;
 //use ml_kit::training::learning_rate::FixedLR;
 use ml_kit::training::learning_rate::AdaGrad;
-use ml_kit::{math::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
+use ml_kit::{math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
 
 fn main() {
     let relative_path = "../data_sets";
