@@ -1,6 +1,6 @@
 use idx_parser::IDXFile;
 use matrix_kit::dynamic::matrix::Matrix;
-use std::{fmt::{Debug, Write}, fs::File, io::prelude::*};
+use std::{fmt::Debug, fs::File, io::prelude::*};
 
 use crate::training::dataset::{DataItem, DataSet};
 
@@ -59,16 +59,20 @@ impl DataItem for MNISTImage {
         one_hot
     }
 
-    fn label(&self) -> String {
+    fn name(&self) -> String {
         self.correct_digit.to_string()
+    }
+    
+    fn label(&self) -> usize {
+        self.correct_digit
     }
 
 }
 
-pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
+pub fn load_mnist(relative_path: &str, prefix: &str) -> DataSet<MNISTImage> {
     // get image data
     let mut buf: Vec<u8> = vec![];
-    let mut file = File::open(format!("data/{}-images.idx3-ubyte", dataset_name)).unwrap();
+    let mut file = File::open(format!("{}/{}-images.idx3-ubyte", relative_path, prefix)).unwrap();
     file.read_to_end(&mut buf).unwrap();
     let images_idx: IDXFile = IDXFile::from_bytes(buf).unwrap();
     let n_rows: usize = images_idx.dimensions[1].try_into().unwrap();
@@ -76,7 +80,7 @@ pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
 
     // get label data
     let mut buf: Vec<u8> = vec![];
-    let mut file = File::open(format!("data/{}-labels.idx1-ubyte", dataset_name)).unwrap();
+    let mut file = File::open(format!("{}/{}-labels.idx1-ubyte", relative_path, prefix)).unwrap();
     file.read_to_end(&mut buf).unwrap();
     let labels_idx = IDXFile::from_bytes(buf).unwrap();
 
@@ -112,7 +116,7 @@ pub fn load_mnist(dataset_name: &str) -> DataSet<MNISTImage> {
                     .try_into()
                     .expect("MNIST parsing error"); // get entry value
 
-                flattened.push(val as f64); // add entry to flattened matrix
+                flattened.push((val as f64) / 255.0); // add entry to flattened matrix
             }
         }
 
@@ -132,7 +136,7 @@ mod mnust_utility_tests {
 
     #[test]
     fn test_printing() {
-        let data = load_mnist("train");
+        let data = load_mnist("fashion", "train");
         // note: image matrix is transposed (hard to find issue: could be parser, matrix library, or printer)
         for i in 100..110 {
             println!("{:?}", data.data_items[i])

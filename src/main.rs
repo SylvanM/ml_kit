@@ -1,50 +1,44 @@
-use ml_kit::{
-    math::activation::AFI,
-    math::loss::SquaredLoss,
-    training::{self, sgd::SGDTrainer},
-    utility::mnist::mnist_utility::{load_mnist, MNISTImage},
-};
-use rand_distr::Distribution;
-use rand_distr::Uniform;
+use std::fs::File;
+
+use ml_kit::math::activation::AFI;
+use ml_kit::models::neuralnet::NeuralNet;
+//use ml_kit::training::learning_rate::FixedLR;
+use ml_kit::training::learning_rate::AdaGrad;
+use ml_kit::{math::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
 
 fn main() {
-    println!("Starting test_sgd");
-    let dataset: crate::training::dataset::DataSet<MNISTImage> = load_mnist("train");
-    let trainer = SGDTrainer::new(dataset.clone());
-    let mut network = trainer.random_network(
+    let relative_path = "../data_sets";
+
+    let dataset = load_mnist(relative_path, "train");
+    let testing_ds = load_mnist(relative_path, "t10k");
+    let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
+
+    let mut neuralnet = NeuralNet::random_network(
         vec![784, 16, 16, 10],
         vec![AFI::Sigmoid, AFI::Sigmoid, AFI::Sigmoid],
     );
 
-    let learning_rate = 0.05;
+    //let mut grad_update_sched = FixedLR::new(0.05);
+    let mut grad_update_sched = AdaGrad::new(0.01, neuralnet.parameter_count());
+    let epochs = 100;
 
-    let original_cost = trainer.cost(&network);
-    println!("Original NN cost: {}", original_cost);
+    let original_cost = trainer.cost(&neuralnet);
+    println!("Original cost: {}", original_cost);
 
-    // Now, train it a bit!
-    let loss_fn = SquaredLoss {};
-    let epochs: usize = 5;
-    let rand_uni: Uniform<usize> =
-        rand_distr::Uniform::try_from(0..dataset.data_items.len()).unwrap();
-    let mut rng: rand::prelude::ThreadRng = rand::rng();
-    for i in 1..=epochs * dataset.data_items.len() {
-        let idx = rand_uni.sample(&mut rng);
+    trainer.train_sgd(&mut neuralnet, &mut grad_update_sched, epochs, 32, true);
 
-        trainer.sgd_batch_step(
-            trainer.data_set.data_items[idx..=idx].to_vec(),
-            &mut network,
-            learning_rate,
-            &loss_fn,
-        );
+    let final_cost = trainer.cost(&neuralnet);
 
-        if i % 10000 == 0 {
-            println!("Iteration: {}", i);
-        }
+    println!("Final cost: {}", final_cost);
 
-        if i % 60000 == 0 {
-            println!("Epoch {} cost: {}", i / 60000, trainer.cost(&network));
-        }
+    // Now, let's go through and actually try it out!
+
+    trainer.display_behavior(&neuralnet, 10);
+
+    println!("Writing final network to testing folder.");
+
+    match File::create("testing/files/digits.mlk_nn") {
+        Ok(mut f) => neuralnet.write_to_file(&mut f),
+        Err(e) => println!("Error writing to file: {:?}", e),
     }
-
-    println!("Final NN cost: {}", trainer.cost(&network));
 }

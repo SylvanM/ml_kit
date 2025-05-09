@@ -1,3 +1,3 @@
 pub mod activation;
 pub mod loss; 
-pub use loss::*;
+pub mod pca;
