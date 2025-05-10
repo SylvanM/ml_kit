@@ -103,9 +103,9 @@ checksum = "8355be11b20d696c8f18f6cc018c4e372165b1fa8126cef092399c9951984ffa"
 
 [[package]]
 name = "matrix_kit"
-version = "0.2.24"
+version = "0.2.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "328cf5c8d4f4ca6f66d6e75078bc63064481fff3ba927ae0ef215b5380efdf41"
+checksum = "39efcc09034cb2e1f1748d8f7d02895f6c1bdb6535b117194943523262b7e984"
 dependencies = [
  "algebra_kit",
  "num-traits",
