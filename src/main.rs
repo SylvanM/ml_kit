@@ -4,13 +4,9 @@ use ml_kit::math::activation::AFI;
 use ml_kit::models::neuralnet::NeuralNet;
 //use ml_kit::training::learning_rate::FixedLR;
 use ml_kit::training::learning_rate::AdaGrad;
-<<<<<<< Updated upstream
-use ml_kit::{math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
-=======
 use ml_kit::{
     math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist,
 };
->>>>>>> Stashed changes
 
 fn main() {
     let relative_path: &'static str = "../data_sets";

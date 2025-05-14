@@ -444,15 +444,9 @@ dependencies = [
 
 [[package]]
 name = "matrix_kit"
-<<<<<<< Updated upstream
 version = "0.2.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0de4ace04f5f302768b3ed14c1246e50ff4dbdd5a9ce87819890f4afe3639ac"
-=======
-version = "0.2.31"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d19391846fc73d2c87e31e53da281f0a0401c36ff351529e3dd3a857a584ac1"
->>>>>>> Stashed changes
 dependencies = [
  "algebra_kit",
  "num-traits",
