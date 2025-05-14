@@ -310,7 +310,7 @@ fn format_svd(u: &mut Matrix<f64>, v: &mut Matrix<f64>, s: &mut Matrix<f64>) {
         (
             u.get_submatrix(0..u.row_count(), c..(c + 1)),
             if c < s.col_count() {
-                s.get(c, c)
+                s.get(c, c).abs()
             } else {
                 f64::NEG_INFINITY
             }
@@ -319,8 +319,8 @@ fn format_svd(u: &mut Matrix<f64>, v: &mut Matrix<f64>, s: &mut Matrix<f64>) {
 
     let mut v_tups: Vec<(Matrix<f64>, f64)> = (0..v.col_count()).map(|c| 
         (
-            v.get_submatrix(0..v.row_count(), c..(c + 1)), 
-            s.get(c, c)
+            v.get_submatrix(0..v.row_count(), c..(c + 1)) * s.get(c, c).signum(),
+            s.get(c, c).abs()
         )
     ).collect();
 
@@ -333,8 +333,8 @@ fn format_svd(u: &mut Matrix<f64>, v: &mut Matrix<f64>, s: &mut Matrix<f64>) {
     *u = Matrix::from_cols(u_cols);
     *v = Matrix::from_cols(v_cols);
 
-    let mut diag: Vec<f64> = s.get_diagonal().iter().map(|sing| *sing).collect();
-    diag.sort_by(|a, b| b.total_cmp(a));
+    let mut diag: Vec<f64> = s.get_diagonal().iter().map(|sing| sing.abs()).collect();
+    diag.sort_by(|a, b| b.abs().total_cmp(&a.abs()));
 
     *s = Matrix::from_diagonal(diag);
 
@@ -347,7 +347,7 @@ fn format_svd(u: &mut Matrix<f64>, v: &mut Matrix<f64>, s: &mut Matrix<f64>) {
 /// U^T * A * V = diag(S)
 /// 
 /// This is an implementation of Algorithm 8.6.2 from Golub and van Loan
-pub fn svd(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
 
     let m = matrix.row_count();
     let n = matrix.col_count();
@@ -427,7 +427,7 @@ pub fn compressed_svd(
     matrix: Matrix<f64>, r: usize
 ) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
 
-    let (u, v, s) = svd(matrix);
+    let (u, v, s) = svd_factorization(matrix);
 
     let u_r = u.get_submatrix(0..u.row_count(), 0..r);
     let v_r = v.get_submatrix(0..v.row_count(), 0..r);
@@ -436,10 +436,29 @@ pub fn compressed_svd(
     (u_r, v_r, s_r)
 }
 
+/// Computes the Singular Value Decomposition of an `m` by `n` matrix `A`,
+/// returning the orthogonal matrices `U` and `V`, and the diagonal matrix
+/// `S`. The columns of `V` are the right singular vectors of `A`, and the 
+/// columns of `U` are the left singular vectors. The diagonal of `S` 
+/// is the singular values of `A`.
+pub fn svd(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+    let m = matrix.row_count();
+    let n = matrix.col_count();
+
+    if m >= n {
+        svd_factorization(matrix)
+    } else {
+        let transposed = matrix.transpose();
+        let (u, v, s) = svd_factorization(transposed);
+        (v, u, s.transpose())
+    }
+}
+
 #[cfg(test)]
 mod svd_math_tests {
     use matrix_kit::dynamic::matrix::Matrix;
     use rand::Rng;
+    use super::compressed_svd;
     use super::house;
     use super::householder_bidiag;
     use super::svd;
@@ -526,10 +545,10 @@ mod svd_math_tests {
 
     #[test]
     fn test_svd() {
-        let a = Matrix::from_flatmap(4, 3, vec![
+        let a = Matrix::from_flatmap(3, 4, vec![
             0.0, 2.0, 4.0, 6.0,
             1.0, 3.0, 5.0, 7.0,
-            -1.0, -2.0, -3.0, -4.0,
+            -1.0, 2.0, -3.0, -4.0,
         ]);
 
         let (u, v, s) = svd(a.clone());
@@ -550,8 +569,8 @@ mod svd_math_tests {
         // for _ in 1..=1 {
         //     let mut rng = rand::rng();
 
-        //     let n = rng.random_range(3..=3);
-        //     let m = rng.random_range(n..=4);
+        //     let n = rng.random_range(2..=40);
+        //     let m = rng.random_range(2..=40);
 
         //     println!("SVD-ing [{} x {}]", m, n);
 
@@ -565,5 +584,29 @@ mod svd_math_tests {
         //     assert!(matrices_close(&alleged_a, &a));
         //     assert!(matrices_close(&alleged_s, &s));
         // }
+    }
+
+    #[test]
+    fn test_svd_compression() {
+        let a = Matrix::from_flatmap(4, 3, vec![
+            0.0, 2.0, 4.0, 6.0,
+            1.0, 3.0, 5.0, 7.0,
+            -1.0, 2.0, -3.0, -4.0,
+        ]);
+
+        let (u, v, s) = compressed_svd(a.clone(), 2);
+
+        println!("Orthogonal check!");
+        println!("{:?}", u.transpose() * u.clone());
+        println!("{:?}", v.transpose() * v.clone());
+
+        println!("Singular values?");
+        println!("{:?}", s);
+
+        println!("Can we get diagonal?");
+        println!("{:?}", u.transpose() * a.clone() * v.clone());
+        
+        println!("Can we recover?");
+        println!("{:?}", u.clone() * s.clone() * v.transpose());
     }
 }
