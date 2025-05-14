@@ -7,34 +7,36 @@
 use core::f64;
 
 use matrix_kit::dynamic::matrix::Matrix;
-use rand_distr::num_traits::Pow;
 
 /// Algorithm 5.1.1 (Householder vector) from Golub and van Loan
 fn house(x: Matrix<f64>) -> (Matrix<f64>, f64) {
-    let sub_x = Matrix::from_index_def(x.row_count() - 1, 1, 
-        &mut |r, _| x.get(r + 1, 0));
-    let sigma = sub_x.inner_product(&sub_x);
+    let x1 = x.get(0, 0);
+    let x_2m = x.get_submatrix(1..x.row_count(), 0..1);
+    let sigma = x_2m.inner_product(&x_2m);
     let mut v = Matrix::identity(1, 1);
-    v.append_mat_bottom(sub_x);
+    v.append_mat_bottom(x_2m);
 
     let beta;
-    let x0 = x.get(0, 0);
 
-    if sigma == 0.0 && x0 >= 0.0 {
+    if sigma == 0.0 && x1 >= 0.0 {
         beta = 0.0;
-    } else if sigma == 0.0 && x0 < 0.0 {
+    } else if sigma == 0.0 && x1 < 0.0 {
         beta = -2.0;
     } else {
-        let mu = (x0.powf(2.0) + sigma).sqrt();
-        if x0 <= 0.0 {
-            v.set(0, 0, x0 - mu);
+        let mu = (x1.powf(2.0) + sigma).sqrt();
+        
+        if x1 <= 0.0 {
+            v.set(0, 0, x1 - mu);
         } else {
-            v.set(0, 0, -sigma / (x0 + mu));
+            v.set(0, 0, 
+                -sigma / (x1 + mu)
+            );
         }
 
-        beta = 2.0 * v.get(0, 0).powf(2.0) / (sigma + v.get(0, 0).powf(2.0));
-
-        v /= v.get(0, 0)
+        let numerator = 2.0 * v.get(0, 0).powf(2.0);
+        let denominator = sigma + v.get(0, 0).powf(2.0);
+        beta = numerator / denominator;
+        v /= v.get(0, 0);
     }
 
     (v, beta)
@@ -46,62 +48,128 @@ fn house(x: Matrix<f64>) -> (Matrix<f64>, f64) {
 /// 
 /// U^T * A * V = B
 ///               0
-fn householder_bidiag(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
-    let mut work_matrix = matrix.clone();
-
-    let n = work_matrix.col_count();
-    let m = work_matrix.row_count();
+fn householder_bidiag(
+    matrix: Matrix<f64>
+) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+    let m = matrix.row_count();
+    let n = matrix.col_count();
+    let mut workmatrix = matrix.clone();
 
     let mut big_u = Matrix::identity(m, m);
     let mut big_v = Matrix::identity(n, n);
 
     for j in 0..n {
-        let (mut v, mut beta) = house(work_matrix.get_submatrix(j..m, j..(j + 1)));
-        work_matrix.set_submatrix(j..m, j..n, 
-            (Matrix::identity(m - j, m - j) 
-                - (v.clone() * v.transpose()) * beta)
-                * work_matrix.get_submatrix(j..m, j..n)
+        let (v, beta) = house(workmatrix.get_submatrix(j..m, j..(j + 1)));
+        // workmatrix.set_submatrix(j..m, j..(j + 1), 
+        //     workmatrix.get_submatrix(j..m, j..(j + 1)) - 
+        //         (v.clone() * v.transpose() 
+        //         * workmatrix.get_submatrix(j..m, j..(j + 1))
+        //         * beta)
+        // );
+        // what if we just compute the ENTIRE householder matrix instead?
+
+        let mut new_v = Matrix::new(m, 1);
+        new_v.set_submatrix(j..m, 0..1, 
+            v.clone()
         );
 
-        // Instead of storing the essential part of the householder vector, 
-        // we'll just continue computing U by accomulation of the intermediate
-        // householder matrices
-        let mut householder_vec = Matrix::new(m, 1);
-        householder_vec.set(j, 0, 1.0);
-        householder_vec.set_submatrix((j + 1)..m, 0..1, 
-            v.get_submatrix(1..(m - j), 0..1)
-        );
-        big_u -= (big_u.clone() * householder_vec.clone()) * (householder_vec * beta).transpose();
+        let new_beta = 2.0 / new_v.l2_norm_squared();
 
-        // zero-out the entries below the diagonal in the j-th column
-        work_matrix.set_submatrix((j + 1)..m, j..(j + 1), 
-            Matrix::new(m - j - 1, 1)
-        );
+        // println!("beta = {}, should be = {}", beta, 2.0 / new_v.l2_norm_squared());
+        
+        let householder_matrix = Matrix::identity(m, m) - (new_v.clone() * new_v.transpose() * new_beta);
+        workmatrix = householder_matrix.transpose() * workmatrix;
 
-        if j + 3 <= n {
-            (v, beta) = house(work_matrix.get_submatrix(
-                j..(j + 1), (j + 1)..n).transpose());
-            work_matrix.set_submatrix(j..m, (j + 1)..n, 
-                work_matrix.get_submatrix(j..m, (j + 1)..n) * 
-                    (Matrix::identity(n - j - 1, n - j - 1) 
-                        - (v.clone() * v.transpose() * beta))
+        // Store the reflection we made to recover later
+        // workmatrix.set_submatrix((j + 1)..m, j..(j + 1), 
+        //     v.get_submatrix(1..(m - j), 0..1)
+        // );
+        
+        // Now update U?
+        // println!("Are we orthogonal? {:?}", householder_matrix.clone() * householder_matrix.transpose());
+        big_u = householder_matrix * big_u;
+
+        // Might have an issue if the matrix has 1 column, but why are we trynna
+        // bidiagonalize that?
+        if j < n - 2 {
+            let (v, beta) = house(
+                workmatrix.get_submatrix(j..(j + 1), (j + 1)..n).transpose()
+            );
+            // workmatrix.set_submatrix(j..m, (j + 1)..n,
+            //     workmatrix.get_submatrix(j..m, (j + 1)..n) - (
+            //         workmatrix.get_submatrix(j..m, (j + 1)..n) 
+            //             * v.clone() * v.transpose() * beta
+            //     )
+            // );
+
+            // we'll just compute the entire householder matrix!
+            let mut new_v = Matrix::new(n, 1);
+            new_v.set_submatrix((j + 1)..n, 0..1, 
+                v.clone()
             );
 
-            householder_vec = Matrix::new(n, 1);
-            householder_vec.set(j + 1, 0, 1.0);
-            householder_vec.set_submatrix((j + 2)..n, 0..1, 
-                v.get_submatrix(1..(n - j - 1), 0..1)
-            );
-            big_v -= (big_v.clone() * householder_vec.clone()) * (householder_vec * beta).transpose();
 
-            // Zero out entries after the superdiagonal
-            work_matrix.set_submatrix(j..(j + 1), (j + 2)..n, 
-                Matrix::new(1, n - j - 2)
-            );
+
+            let householder_matrix = Matrix::identity(n, n) - (new_v.clone() * new_v.transpose() * beta);
+            workmatrix = workmatrix * householder_matrix.clone();
+
+            big_v = householder_matrix * big_v;
+
+            // Store the reflection we made to recover later
+            // workmatrix.set_submatrix(j..(j + 1), (j + 2)..n,
+            //     v.get_submatrix(1..(n - j - 1), 0..1).transpose() // HUH?
+            // );
+
         }
     }
 
-    (big_u, big_v, work_matrix.get_submatrix(0..n, 0..n))
+    // Now, we wish to accumulate the matrices we've got!
+
+    // Let's first compute big_u
+    for j in (0..n).rev() {
+
+        // let mut v = Matrix::new(m, 1);
+        // v.set(j, 0, 1.0);
+        // v.set_submatrix((j + 1)..m, 0..1, 
+        //     workmatrix.get_submatrix((j + 1)..m, j..(j + 1))
+        // );
+        
+        // let norm = workmatrix.get_submatrix((j + 1)..m, j..(j + 1))
+        //                 .l2_norm_squared();
+
+        // let beta = 2.0 / (1.0 + norm);
+        // let new_householder_matrix = Matrix::identity(m, m) - (v.clone() * v.transpose() * beta);
+        // big_u = new_householder_matrix * big_u;
+
+        // zero out what we took
+        workmatrix.set_submatrix((j + 1)..m, j..(j + 1), Matrix::new(m - j - 1, 1));
+    }
+
+    // Now, shall we compute big_v??? Man this will be scary!
+    for j in (0..n - 2).rev() {
+        // For each vector below the diagonal, we turn this into a 
+        // householder rotation and apply it to U
+        
+        // let mut v = Matrix::new(j + 1, 1);
+        // v.append_mat_bottom(Matrix::identity(1, 1));
+        // v.append_mat_bottom(
+        //     workmatrix.get_submatrix(j..(j + 1), (j + 2)..n).transpose()
+        // );
+
+        // let norm = workmatrix.get_submatrix(j..(j + 1), (j + 2)..n)
+        //                     .l2_norm_squared();
+
+        // let beta = 2.0 / (1.0 + norm);
+
+        // let new_householder_matrix = Matrix::identity(n, n) - (v.clone() * v.transpose() * beta);
+        
+        // big_v = new_householder_matrix.clone() * big_v;
+
+        // Zero out what we took
+        workmatrix.set_submatrix(j..(j + 1), (j + 2)..n, Matrix::new(1, n - j - 2));
+    }
+
+    (big_u.transpose(), big_v.transpose(), workmatrix)
 }
 
 /// Algorithm 5.1.3 from Golub and van Loan
@@ -233,6 +301,45 @@ fn golub_kahan_step(
 
 }
 
+/// Sorts, in place, the rows, cols, and diagonal of the SVD of a matrix
+/// so that it's in a useful form, and flips signs so that 
+/// all singular values are positive.
+fn format_svd(u: &mut Matrix<f64>, v: &mut Matrix<f64>, s: &mut Matrix<f64>) {
+
+    let mut u_tups: Vec<(Matrix<f64>, f64)> = (0..u.col_count()).map(|c| 
+        (
+            u.get_submatrix(0..u.row_count(), c..(c + 1)),
+            if c < s.col_count() {
+                s.get(c, c)
+            } else {
+                f64::NEG_INFINITY
+            }
+        )
+    ).collect();
+
+    let mut v_tups: Vec<(Matrix<f64>, f64)> = (0..v.col_count()).map(|c| 
+        (
+            v.get_submatrix(0..v.row_count(), c..(c + 1)), 
+            s.get(c, c)
+        )
+    ).collect();
+
+    u_tups.sort_by(|(_, s1), (_, s2)| s2.total_cmp(s1));
+    v_tups.sort_by(|(_, s1), (_, s2)| s2.total_cmp(s1));
+
+    let u_cols = u_tups.iter().map(|(u_vec, _)| u_vec.clone()).collect();
+    let v_cols = v_tups.iter().map(|(v_vec, _)| v_vec.clone()).collect();
+
+    *u = Matrix::from_cols(u_cols);
+    *v = Matrix::from_cols(v_cols);
+
+    let mut diag: Vec<f64> = s.get_diagonal().iter().map(|sing| *sing).collect();
+    diag.sort_by(|a, b| b.total_cmp(a));
+
+    *s = Matrix::from_diagonal(diag);
+
+}
+
 /// Computes the singular value decomposition of this matrix, `A`, returning 
 /// a tuple `(U, V, S)` where `S` is a `Vec<f64>` of the singular values of
 /// `A`, and
@@ -240,7 +347,7 @@ fn golub_kahan_step(
 /// U^T * A * V = diag(S)
 /// 
 /// This is an implementation of Algorithm 8.6.2 from Golub and van Loan
-pub fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+pub fn svd(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
 
     let m = matrix.row_count();
     let n = matrix.col_count();
@@ -300,40 +407,163 @@ pub fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matr
         }
     }
 
+
+    // Make sure they are in a friendly, useful order
+    format_svd(&mut u, &mut v, &mut b);
     b.append_mat_bottom(Matrix::new(m - n, n));
     (u, v, b)
+}
+
+/// Computes only the `r` most significant singular values and vectors,
+/// used for compressing the data contained in matrix `A`.
+/// 
+/// The result will (U, V, S) so that S is diagonal and the columns of U and V 
+/// are orthogonal (though the matrices themselves are not square.)
+/// 
+/// S will be r x r
+/// U will be m x r
+/// V will be n x r
+pub fn compressed_svd(
+    matrix: Matrix<f64>, r: usize
+) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+
+    let (u, v, s) = svd(matrix);
+
+    let u_r = u.get_submatrix(0..u.row_count(), 0..r);
+    let v_r = v.get_submatrix(0..v.row_count(), 0..r);
+    let s_r = s.get_submatrix(0..r, 0..r);
+
+    (u_r, v_r, s_r)
 }
 
 #[cfg(test)]
 mod svd_math_tests {
     use matrix_kit::dynamic::matrix::Matrix;
+    use rand::Rng;
+    use super::house;
+    use super::householder_bidiag;
+    use super::svd;
 
-    use crate::math::svd::householder_bidiag;
+    fn matrices_close(a: &Matrix<f64>, b: &Matrix<f64>) -> bool {
+        if a.row_count() != b.row_count() || a.col_count() != b.col_count() {
+            return false;
+        } 
+        
+        for r in 0..a.row_count() {
+            for c in 0..a.col_count() {
+                if (a.get(r, c) - b.get(r, c)).abs() > 1e-5 {
+                    return false;
+                }
+            }
+        }
 
-    use super::svd_factorization;
+        return true;
+    }
 
+    #[test]
+    fn test_house() {
+        let x = Matrix::from_flatmap(2, 1, vec![-1.0, 1.0]);
+        let (v, beta) = house(x);
+        println!("House: {:?}, {:?}", beta, v);
+    }
 
     #[test]
     fn test_bidiagonalization() {
-        let a = Matrix::random_normal(5, 4, 0.0, 1.0);
-        println!("{:?}", a);
-        let (u, v, b) = householder_bidiag(a.clone());
-        println!("{:?}\n{:?}\n{:?}", u, v, b);
 
-        println!("{:?}", u.transpose() * a * v);
+        for i in 1..=1000 {
+            let mut rng = rand::rng();
+
+            let n = rng.random_range(2..=40);
+            let m = rng.random_range(n..100);
+
+            let mut a = Matrix::<f64>::random_normal(m, n, 0.0, 1.0);
+            // let a = Matrix::from_flatmap(2, 2, vec![
+            //     -1.0, -1.0, -1.0, 1.0
+            // ]);
+            a.apply_to_all(&|x: f64| x.abs());
+
+            let (u, v, b) = householder_bidiag(a.clone());
+            
+            // println!("U [{} x {}]: {:?}", u.row_count(), u.col_count(), u.clone());
+            // println!("S [{} x {}]: {:?}", b.row_count(), b.col_count(), b.clone());
+            // println!("V [{} x {}]: {:?}", v.row_count(), v.col_count(), v.clone());
+            // make sure u and v are actually orthogonal
+
+            if !matrices_close(&(u.transpose() * u.clone()), &Matrix::identity(u.row_count(), u.col_count())) && 
+               !matrices_close(&(v.transpose() * v.clone()), &Matrix::identity(v.row_count(), v.col_count())){
+                println!("U and V are not orthogonal.");
+                println!("A:{:?}", a);
+                println!("U: {:?}", u.clone());
+                println!("U^T U:{:?}", u.transpose() * u.clone());
+                println!("V^T V:{:?}", v.transpose() * v.clone());
+                panic!("U and V are not orthogonal");
+            }
+
+            if !matrices_close(&(u.transpose() * a.clone() * v.clone()), &b) {
+                println!("Improper factorization");
+                println!("A:{:?}", a);
+                println!("U: {:?}", u.clone());
+                println!("U^T U:{:?}", u.transpose() * u.clone());
+                println!("V^T V:{:?}", v.transpose() * v.clone());
+                println!("U^T * A * V: {:?}", u.transpose() * a.clone() * v.clone());
+                println!("U * A * V^T: {:?}", u.clone() * a.clone() * v.transpose());
+                println!("B: {:?}", b);
+                panic!("Wrong factorization");
+            }
+
+            if !matrices_close(&(u.clone() * b.clone() * v.transpose()), &a) {
+                println!("Improper factorization");
+                println!("A:{:?}", a);
+                println!("U: {:?}", u.clone());
+                println!("U^T U:{:?}", u.transpose() * u.clone());
+                println!("V^T V:{:?}", v.transpose() * v.clone());
+                println!("U^T * A * V: {:?}", u.transpose() * a.clone() * v);
+                println!("B: {:?}", b);
+                panic!("Wrong factorization");
+            }
+        }
     }
 
     #[test]
     fn test_svd() {
-        let a = Matrix::random_normal(5, 4, 0.0, 1.0);
+        let a = Matrix::from_flatmap(4, 3, vec![
+            0.0, 2.0, 4.0, 6.0,
+            1.0, 3.0, 5.0, 7.0,
+            -1.0, -2.0, -3.0, -4.0,
+        ]);
 
-        let (u, v, s) = svd_factorization(a.clone());
+        let (u, v, s) = svd(a.clone());
 
-        // Are u and v orthogonal?
+        println!("Orthogonal check!");
+        println!("{:?}", u.transpose() * u.clone());
+        println!("{:?}", v.transpose() * v.clone());
 
-        println!("A: {:?}", a);
-        println!("U S V^T: {:?}", u.clone() * s * v.transpose());
+        println!("Singular values?");
+        println!("{:?}", s);
 
-        // Yay it actually works!
+        println!("Can we get diagonal?");
+        println!("{:?}", u.transpose() * a.clone() * v.clone());
+        
+        println!("Can we recover?");
+        println!("{:?}", u.clone() * s.clone() * v.transpose());
+
+        // for _ in 1..=1 {
+        //     let mut rng = rand::rng();
+
+        //     let n = rng.random_range(3..=3);
+        //     let m = rng.random_range(n..=4);
+
+        //     println!("SVD-ing [{} x {}]", m, n);
+
+        //     let a = Matrix::random_normal(m, n, 0.0, 1.0);
+
+        //     let (u, v, s) = svd(a.clone());
+
+        //     let alleged_a = u.clone() * s.clone() * v.transpose();
+        //     let alleged_s = u.transpose() * a.clone() * v.clone();
+
+        //     assert!(matrices_close(&alleged_a, &a));
+        //     assert!(matrices_close(&alleged_s, &s));
+        // }
     }
 }
