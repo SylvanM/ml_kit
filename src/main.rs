@@ -4,14 +4,21 @@ use ml_kit::math::activation::AFI;
 use ml_kit::models::neuralnet::NeuralNet;
 //use ml_kit::training::learning_rate::FixedLR;
 use ml_kit::training::learning_rate::AdaGrad;
+<<<<<<< Updated upstream
 use ml_kit::{math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist};
+=======
+use ml_kit::{
+    math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist,
+};
+>>>>>>> Stashed changes
 
 fn main() {
-    let relative_path = "../data_sets";
+    let relative_path: &'static str = "../data_sets";
 
     let dataset = load_mnist(relative_path, "train");
     let testing_ds = load_mnist(relative_path, "t10k");
-    let trainer = SGDTrainer::new(dataset, testing_ds, LFI::Squared);
+    let trainer: SGDTrainer<ml_kit::utility::mnist::mnist_utility::MNISTImage> =
+        SGDTrainer::new(dataset, testing_ds, LFI::Squared);
 
     let mut neuralnet = NeuralNet::random_network(
         vec![784, 16, 16, 10],

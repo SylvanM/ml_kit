@@ -2,21 +2,18 @@
 //! Stochastic Gradient Descent Trainer for Neural Networks
 //!
 
-
-
 use std::ops::{AddAssign, SubAssign};
 
 use matrix_kit::dynamic::matrix::Matrix;
 
-use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
 use crate::math::loss::LFI;
+use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
 
 use super::dataset::{DataItem, DataSet};
 use super::learning_rate::GradientUpdateSchedule;
 
 /// An SGD trainer that trains a neural network
 pub struct SGDTrainer<DI: DataItem> {
-    
     /// The dataset on which we train
     pub training_data_set: DataSet<DI>,
 
@@ -25,7 +22,6 @@ pub struct SGDTrainer<DI: DataItem> {
 
     /// The loss function used
     pub loss_function: LFI,
-
 }
 
 /// A Gradient representation
@@ -61,17 +57,16 @@ impl PartialEq for NNGradient {
         } else {
             for l in 0..self.derivatives.weights.len() {
                 if self.derivatives.weights[l] != other.derivatives.weights[l] {
-                    return false
+                    return false;
                 }
 
                 if self.derivatives.biases[l] != other.derivatives.biases[l] {
-                    return false
+                    return false;
                 }
             }
 
             return true;
         }
-
     }
 }
 
@@ -118,7 +113,6 @@ impl NNGradient {
     }
 
     pub fn as_vec(&self) -> Matrix<f64> {
-        
         let mut grad = Matrix::new(self.derivatives.parameter_count(), 1);
 
         let mut i = 0;
@@ -142,7 +136,8 @@ impl NNGradient {
     }
 
     pub fn from_vec(grad: Matrix<f64>, shape: Vec<usize>) -> NNGradient {
-        let mut derivatives = NeuralNet::from_shape(shape.clone(), vec![AFI::Identity ; shape.len() - 1]);
+        let mut derivatives =
+            NeuralNet::from_shape(shape.clone(), vec![AFI::Identity; shape.len() - 1]);
 
         let mut i = 0;
         for l in 0..derivatives.weights.len() {
@@ -177,12 +172,13 @@ mod grad_tests {
 
         for _ in 0..10 {
             let layers = rng.random_range(3..100);
-            let mut shape = vec![0 ; layers];
+            let mut shape = vec![0; layers];
             for l in 0..layers {
                 shape[l] = rng.random_range(3..100);
             }
 
-            let derivatives = NeuralNet::random_network(shape.clone(), vec![AFI::Identity ; layers - 1]);
+            let derivatives =
+                NeuralNet::random_network(shape.clone(), vec![AFI::Identity; layers - 1]);
 
             let gradient = NNGradient { derivatives };
             let grad_vector = gradient.as_vec();
@@ -191,13 +187,19 @@ mod grad_tests {
             assert_eq!(gradient, new_gradient);
         }
     }
-
 }
 
-impl<DI: DataItem> SGDTrainer<DI>  {
-
-    pub fn new(training_data_set: DataSet<DI>, testing_data_set: DataSet<DI>, loss_function: LFI) -> SGDTrainer<DI> {
-        SGDTrainer { training_data_set, testing_data_set, loss_function }
+impl<DI: DataItem> SGDTrainer<DI> {
+    pub fn new(
+        training_data_set: DataSet<DI>,
+        testing_data_set: DataSet<DI>,
+        loss_function: LFI,
+    ) -> SGDTrainer<DI> {
+        SGDTrainer {
+            training_data_set,
+            testing_data_set,
+            loss_function,
+        }
     }
 
     // MARK: Training
@@ -208,7 +210,9 @@ impl<DI: DataItem> SGDTrainer<DI>  {
     ///
     /// TODO: Generalize this to think about more than just squared loss
     pub fn compute_gradient(&self, training_item: DI, neuralnet: &NeuralNet) -> NNGradient {
-        let mut gradient = NNGradient { derivatives: neuralnet.clone() };
+        let mut gradient = NNGradient {
+            derivatives: neuralnet.clone(),
+        };
 
         let layers = neuralnet.layer_count() - 1; // The number of non-input layers. (Denotes as L in the writeup)
 
@@ -220,9 +224,13 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         let mut gradient_wrt_activations = a.clone(); // This is basically our DP table!
 
         // Base case of DP table, compute all dC/da for each activation in the final layer
-        gradient_wrt_activations[layers] = self.loss_function.derivative(&a[layers], &training_item.correct_output()); 
-        gradient.derivatives.biases[layers - 1] = dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers].clone());
-        gradient.derivatives.weights[layers - 1] = gradient.derivatives.biases[layers - 1].clone() * a[layers - 1].transpose();
+        gradient_wrt_activations[layers] = self
+            .loss_function
+            .derivative(&a[layers], &training_item.correct_output());
+        gradient.derivatives.biases[layers - 1] =
+            dot_sigma_z[layers - 1].hadamard(gradient_wrt_activations[layers].clone());
+        gradient.derivatives.weights[layers - 1] =
+            gradient.derivatives.biases[layers - 1].clone() * a[layers - 1].transpose();
 
         // the rest now! I want the indices to actually match the indices in the writeup as closely as possible.
 
@@ -240,7 +248,12 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Performs a step of GD on a mini-batch of data, returning the size
     /// of the gradient vector (before rescaling) so we can see how far from a local minimum we are.
-    pub fn sgd_batch_step<GUS: GradientUpdateSchedule>(&self, batch: Vec<DI>, neuralnet: &mut NeuralNet, gus: &mut GUS) -> f64 {
+    pub fn sgd_batch_step<GUS: GradientUpdateSchedule>(
+        &self,
+        batch: Vec<DI>,
+        neuralnet: &mut NeuralNet,
+        gus: &mut GUS,
+    ) -> f64 {
         // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
@@ -260,12 +273,19 @@ impl<DI: DataItem> SGDTrainer<DI>  {
 
     /// Runs Gradient Descent on this Data Set, outputting
     /// a neural network
-    /// 
-    /// * `neuralnet` - The neural network to train 
+    ///
+    /// * `neuralnet` - The neural network to train
     /// * `lrs` - A learning rate schedule
     /// * `epochs` - the number of epochs to run
     /// * `batch_size` - the number of training items in each batch
-    pub fn train_sgd<GUS: GradientUpdateSchedule>(&self, neuralnet: &mut NeuralNet, gus: &mut GUS, epochs: usize, batch_size: usize, verbose: bool) {
+    pub fn train_sgd<GUS: GradientUpdateSchedule>(
+        &self,
+        neuralnet: &mut NeuralNet,
+        gus: &mut GUS,
+        epochs: usize,
+        batch_size: usize,
+        verbose: bool,
+    ) {
         // Repeat for all epochs!
 
         for epoch in 0..epochs {
@@ -298,7 +318,7 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         }
 
         average_cost / (ds.data_items.len() as f64)
-    }   
+    }
 
     /// The accuracy, as a percentage of testing items classified correctly
     pub fn accuracy(&self, network: &NeuralNet) -> f64 {
@@ -315,29 +335,29 @@ impl<DI: DataItem> SGDTrainer<DI>  {
         (num_correct as f64) / (self.testing_data_set.data_items.len() as f64)
     }
 
-    /// Samples a few data items and prints to the screen the behavior 
+    /// Samples a few data items and prints to the screen the behavior
     /// of the network
     pub fn display_behavior(&self, network: &NeuralNet, num_items: usize) {
-        println!("Displaying network performance on {} testing items", num_items);
+        println!(
+            "Displaying network performance on {} testing items",
+            num_items
+        );
 
         for item in self.testing_data_set.random_sample(num_items) {
             println!("---Training Label: {} ---", item.name());
             println!("{:?}", item);
             println!("Network output: {:?}", network.classify(item.input()));
         }
-        
+
         println!("--------------------");
         println!("Final cost: {}", self.cost(network));
         println!("Classification accuracy: {}", self.accuracy(network));
     }
-
 }
 
 #[cfg(test)]
 mod sgd_tests {
 
     #[test]
-    fn test_stuff() {
-
-    }
+    fn test_stuff() {}
 }
