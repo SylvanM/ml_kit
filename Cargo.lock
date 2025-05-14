@@ -444,9 +444,9 @@ dependencies = [
 
 [[package]]
 name = "matrix_kit"
-version = "0.2.28"
+version = "0.2.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ff90be7ac3f61049becc20c175277544bc596b37a4bf8ec1331055d31f7df81"
+checksum = "d0de4ace04f5f302768b3ed14c1246e50ff4dbdd5a9ce87819890f4afe3639ac"
 dependencies = [
  "algebra_kit",
  "num-traits",

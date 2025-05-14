@@ -59,7 +59,7 @@ fn householder_bidiag(
     let mut big_v = Matrix::identity(n, n);
 
     for j in 0..n {
-        let (v, beta) = house(workmatrix.get_submatrix(j..m, j..(j + 1)));
+        let (v, _beta) = house(workmatrix.get_submatrix(j..m, j..(j + 1)));
         // workmatrix.set_submatrix(j..m, j..(j + 1), 
         //     workmatrix.get_submatrix(j..m, j..(j + 1)) - 
         //         (v.clone() * v.transpose() 
@@ -420,12 +420,12 @@ fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f
 /// The result will (U, V, S) so that S is diagonal and the columns of U and V 
 /// are orthogonal (though the matrices themselves are not square.)
 /// 
-/// S will be r x r
+/// S will be an r-length Vec<f64>
 /// U will be m x r
 /// V will be n x r
 pub fn compressed_svd(
     matrix: Matrix<f64>, r: usize
-) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+) -> (Matrix<f64>, Matrix<f64>, Vec<f64>) {
 
     let (u, v, s) = svd_factorization(matrix);
 
@@ -433,7 +433,7 @@ pub fn compressed_svd(
     let v_r = v.get_submatrix(0..v.row_count(), 0..r);
     let s_r = s.get_submatrix(0..r, 0..r);
 
-    (u_r, v_r, s_r)
+    (u_r, v_r, s_r.get_diagonal())
 }
 
 /// Computes the Singular Value Decomposition of an `m` by `n` matrix `A`,
@@ -489,7 +489,7 @@ mod svd_math_tests {
     #[test]
     fn test_bidiagonalization() {
 
-        for i in 1..=1000 {
+        for _ in 1..=1000 {
             let mut rng = rand::rng();
 
             let n = rng.random_range(2..=40);
@@ -607,6 +607,11 @@ mod svd_math_tests {
         println!("{:?}", u.transpose() * a.clone() * v.clone());
         
         println!("Can we recover?");
-        println!("{:?}", u.clone() * s.clone() * v.transpose());
+        let s_matrix = Matrix::from_index_def(u.col_count(), v.col_count(), &mut |r, c| if r == c {
+            s[r] 
+        }else {
+                0.0
+            });
+        println!("{:?}", u.clone() * s_matrix * v.transpose());
     }
 }
