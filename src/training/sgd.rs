@@ -12,6 +12,8 @@ use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
 use super::dataset::{DataItem, DataSet};
 use super::learning_rate::GradientUpdateSchedule;
 
+use crate::models::convneuralnet::{ConvNeuralNet, Layer, CNNGradient};
+
 /// An SGD trainer that trains a neural network
 pub struct SGDTrainer<DI: DataItem> {
     /// The dataset on which we train
@@ -30,11 +32,41 @@ pub struct NNGradient {
     pub derivatives: NeuralNet,
 }
 
+/// A Gradient representation for CNNs
+#[derive(Clone, Debug)]
+pub struct CNNGradient {
+    pub derivatives: Vec<Layer>,
+}
+
 impl SubAssign<NNGradient> for NeuralNet {
     fn sub_assign(&mut self, rhs: NNGradient) {
         for layer in 0..self.weights.len() {
             self.weights[layer] -= rhs.derivatives.weights[layer].clone();
             self.biases[layer] -= rhs.derivatives.biases[layer].clone();
+        }
+    }
+}
+
+impl SubAssign<CNNGradient> for ConvNeuralNet {
+    fn sub_assign(&mut self, rhs: CNNGradient) {
+        for (layer_index, layer) in self.layers.iter_mut().enumerate() {
+            match (layer, &rhs.derivatives[layer_idx]) {
+                (Layer::Conv(conv), Layer::Conv(grad)) => {
+                    // Conv Layers
+                    for (filter_index, filter) in conv.filters.iter_mut().enumerate() {
+                        for (depth_index, depth) in filter.iter_mut().enumerate() {
+                            *depth -= grad.filters[filter_index][depth_index].clone();
+                        }
+                    }
+                    conv.biases -= grad.biases.clone();
+                }
+                (Layer::Full(full), Layer::Full(grad)) => {
+                    // FC Layers
+                    full.weights -= grad.weights.clone();
+                    full.biases -= grad.biases.clone();
+                }
+                _ => {} // Pool layers
+            }
         }
     }
 }
@@ -46,6 +78,30 @@ impl AddAssign for NNGradient {
         for layer in 0..self.derivatives.weights.len() {
             self.derivatives.weights[layer] += rhs.derivatives.weights[layer].clone();
             self.derivatives.biases[layer] += rhs.derivatives.biases[layer].clone();
+        }
+    }
+}
+
+impl AddAssign for CNNGradient {
+    fn add_assign(&mut self, rhs: Self) {
+        for (layer_index, layer) in self.derivatives.iter_mut().enumerate() {
+            match (layer, &rhs.derivatives[layer_index]) {
+                (Layer::Conv(conv), Layer::Conv(grad)) => {
+                    // Conv Layers
+                    for (filter_index, filter) in conv.filters.iter_mut().enumerate() {
+                        for (depth_index, depth) in filter.iter_mut().enumerate() {
+                            *depth += grad.filters[filter_index][depth_index].clone();
+                        }
+                    }
+                    conv.biases += grad.biases.clone();
+                }
+                (Layer::Full(full), Layer::Full(grad)) => {
+                    // FClayers
+                    full.weights += grad.weights.clone();
+                    full.biases += grad.biases.clone();
+                }
+                _ => {} // Pool layers
+            }
         }
     }
 }
@@ -155,6 +211,106 @@ impl NNGradient {
         }
 
         NNGradient { derivatives }
+    }
+}
+
+impl CNNGradient {
+    pub fn from_cnn_shape(cnn: &ConvNeuralNet) -> CNNGradient {
+        let mut derivatives = Vec::new();
+        
+        for layer in &cnn.layers {
+            match layer {
+                Layer::Conv(conv) => {
+                    // Conv layer -> zero gradients
+                    let mut zero_filters = Vec::new();
+                    for filter in &conv.filters {
+                        let mut zero_filter = Vec::new();
+                        for depth in filter {
+                            zero_filter.push(Matrix::new(depth.row_count(), depth.col_count()));
+                        }
+                        zero_filters.push(zero_filter);
+                    }
+                    derivatives.push(Layer::Conv(ConvLayer::new(
+                        zero_filters,
+                        Matrix::new(conv.biases.row_count(), 1),
+                        conv.act_func.clone(),
+                        conv.stride,
+                        conv.padding,
+                    )));
+                }
+                Layer::Pool(pool) => {
+                    // Pool layers -> no params 
+                    derivatives.push(Layer::Pool(PoolLayer::new(
+                        pool.pool_type.clone(),
+                        pool.w_rows,
+                        pool.w_cols,
+                        pool.stride,
+                    )));
+                }
+                Layer::Full(full) => {
+                    // Fc Layer -> zero gradients
+                    derivatives.push(Layer::Full(FullLayer::new(
+                        Matrix::new(full.weights.row_count(), full.weights.col_count()),
+                        Matrix::new(full.biases.row_count(), 1),
+                        full.act_func.clone(),
+                    )));
+                }
+            }
+        }
+        
+        CNNGradient { derivatives }
+    }
+
+    pub fn norm(&self) -> f64 {
+        let mut norm_squared = 0.0;
+        
+        for layer in &self.derivatives {
+            match layer {
+                Layer::Conv(conv) => {
+                    // sum^2 norms 
+                    for filter in &conv.filters {
+                        for depth in filter {
+                            norm_squared += depth.l2_norm_squared();
+                        }
+                    }
+                    norm_squared += conv.biases.l2_norm_squared();
+                }
+                Layer::Full(full) => {
+                    norm_squared += full.weights.l2_norm_squared();
+                    norm_squared += full.biases.l2_norm_squared();
+                }
+                _ => {} 
+            }
+        }
+        
+        norm_squared.sqrt()
+    }
+
+    pub fn set_length(&mut self, length: f64) {
+        let norm = self.norm();
+        if norm == 0.0 {
+            return;
+        }
+        
+        for layer in &mut self.derivatives {
+            match layer {
+                // Conv Layer
+                Layer::Conv(conv) => {
+                    for filter in &mut conv.filters {
+                        for depth in filter {
+                            *depth = depth.clone() * (length / norm);
+                        }
+                    }
+                    conv.biases = conv.biases.clone() * (length / norm);
+                }
+                // FCLayer
+                Layer::Full(full) => {
+                    full.weights = full.weights.clone() * (length / norm);
+                    full.biases = full.biases.clone() * (length / norm);
+                }
+                _ => {} //Pool Layer
+            }
+        }
     }
 }
 
@@ -300,6 +456,57 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
         if verbose {
             println!("Completed all epochs of training.");
+        }
+    }
+
+    /// TODO: integrate w/ backprop.
+    pub fn compute_cnn_gradient(&self, training_item: DI, cnn: &ConvNeuralNet) -> CNNGradient {
+    }
+             
+
+    /// Performs a step of SGD on a mini-batch of data for a CNN
+    pub fn sgd_cnn_batch_step<GUS: GradientUpdateSchedule>(
+        &self,
+        batch: Vec<DI>,
+        cnn: &mut ConvNeuralNet,
+        gus: &mut GUS,
+    ) -> f64 {
+        let mut gradient = CNNGradient::from_cnn_shape(cnn);
+
+        for item in batch {
+            gradient += self.compute_cnn_gradient(item, cnn);
+        }
+
+        let original_length = gradient.norm();
+
+        gus.next_gradient(&mut gradient);
+
+        *cnn -= gradient;
+
+        original_length
+    }
+
+    /// Trains a CNN using SGD
+    pub fn train_cnn_sgd<GUS: GradientUpdateSchedule>(
+        &self,
+        cnn: &mut ConvNeuralNet,
+        gus: &mut GUS,
+        epochs: usize,
+        batch_size: usize,
+        verbose: bool,
+    ) {
+        for epoch in 0..epochs {
+            if verbose {
+                println!("Training CNN on epoch {}...", epoch);
+            }
+
+            for batch in self.training_data_set.all_minibatches(batch_size) {
+                self.sgd_cnn_batch_step(batch, cnn, gus);
+            }
+        }
+
+        if verbose {
+            println!("Completed all epochs of CNN training.");
         }
     }
 
