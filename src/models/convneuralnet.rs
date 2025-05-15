@@ -548,7 +548,8 @@ impl ConvNeuralNet {
 
     /// gradient of LFI w/ respect to network
     pub fn compute_gradient(&self, input: Vec<Matrix<f64>>, target: Vec<Matrix<f64>>, loss_function: &LFI) -> CNNGradient {
-}
+        
+    }
 }
 
 #[cfg(test)]
