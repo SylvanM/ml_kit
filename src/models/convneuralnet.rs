@@ -31,6 +31,14 @@ pub struct ConvLayer {
     act_func: AFI,
     stride: usize,
     padding: usize,
+    output_rows: usize,
+    output_cols: usize,
+    padded_input: Vec<Matrix<f64>>,
+    converted_input: Matrix<f64>,
+    converted_kernel: Matrix<f64>,
+    output: Vec<Matrix<f64>>,
+    d_filters: Vec<Vec<Vec<Matrix<f64>>>>,
+    d_biases: Vec<Matrix<f64>>,
 }
 
 impl ConvLayer {
@@ -47,6 +55,14 @@ impl ConvLayer {
             act_func,
             stride,
             padding,
+            output_rows: 0,
+            output_cols: 0,
+            padded_input: Vec::new(),
+            converted_input: Matrix::new(0, 0),
+            converted_kernel: Matrix::new(0, 0),
+            output: Vec::new(),
+            d_filters: Vec::new(),
+            d_biases: Vec::new(),
         }
     }
 
@@ -77,6 +93,14 @@ impl ConvLayer {
             act_func,
             stride,
             padding,
+            output_rows: 0,
+            output_cols: 0,
+            padded_input: Vec::new(),
+            converted_input: Matrix::new(0, 0),
+            converted_kernel: Matrix::new(0, 0),
+            output: Vec::new(),
+            d_filters: Vec::new(),
+            d_biases: Vec::new(),
         }
     }
 
@@ -136,28 +160,25 @@ impl ConvLayer {
     }
 
     /// Return the output of the layer given input list of matrices a
-    pub fn feedforward(&self, a: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+    pub fn feedforward(&mut self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
         let f_depth = self.filters[0].len();
         let f_rows = self.filters[0][0].row_count();
         let f_cols = self.filters[0][0].col_count();
-        println!("f_rows: {}; f_cols: {}", f_rows, f_cols);
 
         // Add padding if needed
-        let padded_input: Vec<Matrix<f64>> = a.into_iter().map(|m| self.add_padding(m)).collect();
-        println!("Padded input: {:?}", padded_input[0]);
+        self.padded_input = input.into_iter().map(|m| self.add_padding(m)).collect();
 
         // Calculate output dimensions
-        let output_rows = (padded_input[0].row_count() - f_rows) / self.stride + 1;
-        let output_cols = (padded_input[0].col_count() - f_cols) / self.stride + 1;
+        self.output_rows = (self.padded_input[0].row_count() - f_rows) / self.stride + 1;
+        self.output_cols = (self.padded_input[0].col_count() - f_cols) / self.stride + 1;
 
         // Convert convolution to matrix multiplication
         let mut flatmap: Vec<f64> = Vec::new();
-        for r in (0..output_rows).step_by(self.stride) {
-            for c in (0..output_cols).step_by(self.stride) {
-                println!("row: {}, col: {}", r, c);
-                for l in 0..padded_input.len() {
+        for r in (0..self.output_rows).step_by(self.stride) {
+            for c in (0..self.output_cols).step_by(self.stride) {
+                for l in 0..self.padded_input.len() {
                     flatmap.append(
-                        &mut padded_input[l]
+                        &mut self.padded_input[l]
                             .get_submatrix(
                                 Range {
                                     start: r,
@@ -168,21 +189,20 @@ impl ConvLayer {
                                     end: c + f_cols,
                                 },
                             )
+                            .transpose()
                             .as_vec(),
                     );
                 }
-                // cols.push(Matrix::from_flatmap(1, f_rows * f_cols * f_depth, col));
             }
         }
 
-        let converted_input = Matrix::from_flatmap(
+        self.converted_input = Matrix::from_flatmap(
             f_rows * f_cols * f_depth,
-            output_rows * output_cols,
+            self.output_rows * self.output_cols,
             flatmap,
         );
 
-        println!("Converted Input: {:?}", converted_input);
-        let converted_kernel = Matrix::from_flatmap(
+        self.converted_kernel = Matrix::from_flatmap(
             f_rows * f_cols * f_depth,
             self.filters.len(),
             self.filters
@@ -190,7 +210,7 @@ impl ConvLayer {
                 .into_iter()
                 .map(|f| {
                     f.into_iter()
-                        .map(|m| m.as_vec())
+                        .map(|m| m.transpose().as_vec())
                         .collect::<Vec<_>>()
                         .concat()
                 })
@@ -198,20 +218,137 @@ impl ConvLayer {
                 .concat(),
         )
         .transpose();
-        println!("Converted Kernel: {:?}", converted_kernel);
 
-        let mut output: Vec<Matrix<f64>> = (converted_kernel * converted_input)
+        self.output = (self.converted_kernel.clone() * self.converted_input.clone())
             .transpose()
             .columns()
             .into_iter()
-            .map(|mat| Matrix::from_flatmap(output_cols, output_rows, mat.as_vec()).transpose())
+            .map(|mat| {
+                Matrix::from_flatmap(self.output_cols, self.output_rows, mat.as_vec()).transpose()
+            })
             .collect();
 
         // Apply activation and add bias
         for l in 0..self.filters.len() {
-            output[l].apply_to_all(&|x| self.act_func.evaluate(x + self.biases.get(l, 0)));
+            self.output[l].apply_to_all(&|x| self.act_func.evaluate(x + self.biases.get(l, 0)));
         }
-        output
+
+        self.output.clone()
+    }
+
+    pub fn backprop(&mut self, d_output: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+        let f_depth = self.filters[0].len();
+        let f_rows = self.filters[0][0].row_count();
+        let f_cols = self.filters[0][0].col_count();
+
+        let mut d_output = d_output.clone();
+
+        // ReLU derivative: setting d_output to 0 anywhere output is 0
+        for l in 0..self.output.len() {
+            for r in 0..self.output[l].row_count() {
+                for c in 0..self.output[l].col_count() {
+                    if self.output[l].get(r, c) == 0. {
+                        d_output[l].set(r, c, 0.)
+                    }
+                }
+            }
+        }
+
+        // Bias derivatives
+        let mut d_biases_flatmap: Vec<f64> = Vec::new();
+        for l in 0..self.output.len() {
+            d_biases_flatmap.push(d_output[l].as_vec().iter().sum());
+        }
+        self.d_biases
+            .push(Matrix::from_flatmap(self.output.len(), 1, d_biases_flatmap));
+
+        // Filter derivatives
+        let converted_dout = Matrix::from_flatmap(
+            self.output_rows * self.output_cols,
+            self.filters.len(),
+            d_output
+                .into_iter()
+                .map(|m| m.transpose().as_vec())
+                .collect::<Vec<_>>()
+                .concat(),
+        );
+        println!("CONVERTED DOUT: {:?}", converted_dout);
+        self.d_filters.push(
+            (self.converted_input.clone() * converted_dout.clone())
+                .columns()
+                .into_iter()
+                .map(|m| {
+                    Matrix::from_flatmap(f_rows * f_cols, f_depth, m.as_vec())
+                        .columns()
+                        .into_iter()
+                        .map(|f| Matrix::from_flatmap(f_rows, f_cols, f.as_vec()))
+                        .collect::<Vec<_>>()
+                })
+                .collect::<Vec<_>>(),
+        );
+
+        // Input derivatives
+        let d_input_subs = Matrix::from_flatmap(
+            f_rows * f_cols * self.output_rows * self.output_cols,
+            f_depth,
+            (converted_dout.clone() * self.converted_kernel.clone()).as_vec(),
+        )
+        .columns()
+        .into_iter()
+        .map(|m| {
+            Matrix::from_flatmap(
+                self.output_rows * self.output_cols,
+                f_rows * f_cols,
+                m.as_vec(),
+            )
+            .transpose()
+            .columns()
+        })
+        .collect::<Vec<_>>();
+
+        println!("d_input IN BACKPROP:");
+
+        let mut d_input: Vec<Matrix<f64>> = Vec::new();
+        for l in 0..f_depth {
+            let mut grad: Matrix<f64> = Matrix::new(
+                self.padded_input[l].row_count(),
+                self.padded_input[l].col_count(),
+            );
+            for i in 0..d_input_subs[l].len() {
+                let r_start = i / self.output_cols * self.stride;
+                let c_start = (i % self.output_cols) * self.stride;
+                let mut new_mat = Matrix::new(grad.row_count(), grad.col_count());
+                new_mat.set_submatrix(
+                    Range {
+                        start: r_start,
+                        end: r_start + f_rows,
+                    },
+                    Range {
+                        start: c_start,
+                        end: c_start + f_cols,
+                    },
+                    Matrix::from_flatmap(f_cols, f_rows, d_input_subs[l][i].as_vec()).transpose(),
+                );
+                println!(
+                    "l = {:}; i = {:}, d_input = {:?}, new_mat = {:?}",
+                    l, i, d_input_subs[l][i], new_mat
+                );
+                grad = grad + new_mat;
+                print!("grad = {:?}", grad);
+            }
+            d_input.push(grad.get_submatrix(
+                Range {
+                    start: self.padding,
+                    end: grad.row_count() - self.padding,
+                },
+                Range {
+                    start: self.padding,
+                    end: grad.col_count() - self.padding,
+                },
+            ));
+        }
+
+        d_input
     }
 }
 
@@ -359,24 +496,60 @@ mod conv_tests {
 
     #[test]
     fn test_conv() {
-        let x = vec![Matrix::from_flatmap(
-            3,
-            3,
-            vec![1., 2., 3., 4., 5., 6., 7., 8., 9.],
-        )];
+        let x = vec![
+            Matrix::from_flatmap(3, 3, vec![1., 2., 3., 4., 5., 6., 7., 8., 9.]),
+            Matrix::from_flatmap(3, 3, vec![9., 8., 7., 6., 5., 4., 3., 2., 1.]),
+        ];
         // println!("x = {:?}", x[0].get_diagonal());
-        let filters = vec![vec![Matrix::from_flatmap(2, 2, vec![1., 2., 3., 4.])]];
-        let biases = Matrix::from_flatmap(1, 1, vec![1.]);
-        let correct = vec![Matrix::from_flatmap(2, 2, vec![38., 48., 68., 78.])];
+        let filters = vec![
+            vec![
+                Matrix::from_flatmap(2, 2, vec![1., 2., 3., 4.]),
+                Matrix::from_flatmap(2, 2, vec![1., 0., 0., 0.]),
+            ],
+            vec![
+                Matrix::from_flatmap(2, 2, vec![1., 1., 1., 1.]),
+                Matrix::from_flatmap(2, 2, vec![0., 0., 0., 1.]),
+            ],
+        ];
+        let biases = Matrix::from_flatmap(2, 1, vec![1., 5.]);
+        let correct = vec![
+            Matrix::from_flatmap(2, 2, vec![47., 56., 74., 83.]),
+            Matrix::from_flatmap(2, 2, vec![22., 25., 31., 34.]),
+        ];
 
         println!(
             "TESTING SUBMATRIX: {:?}",
             x[0].get_submatrix(Range { start: 0, end: 1 }, Range { start: 0, end: 1 })
         );
 
-        let cl = ConvLayer::new(filters, biases, AFI::ReLu, 1, 0);
+        let mut cl = ConvLayer::new(filters, biases, AFI::ReLu, 1, 0);
         let out = cl.feedforward(&x);
-        println!("Correct: {:?} \nOutputted: {:?}", correct[0], out[0]);
+
+        println!("Correct:");
+        print_mat_list(&correct);
+        println!("Outputted:");
+        print_mat_list(&out);
         assert_eq!(out, correct);
+
+        let d_output = vec![
+            Matrix::from_flatmap(2, 2, vec![1., 1., 1., 1.]),
+            Matrix::from_flatmap(2, 2, vec![1., 1., 1., 1.]),
+        ];
+        let d_input = cl.backprop(&d_output);
+        println!("d_input:");
+        print_mat_list(&d_input);
+        println!("d_filters:");
+        for i in 0..cl.d_filters[0].len() {
+            print_mat_list(&cl.d_filters[0][i]);
+        }
+        println!("d_biases: {:?}", cl.d_biases);
+    }
+
+    fn print_mat_list(mats: &Vec<Matrix<f64>>) {
+        print!("Matrix List:");
+        for i in 0..mats.len() {
+            print!("{:?}", mats[i])
+        }
+        print!("\n\n");
     }
 }
