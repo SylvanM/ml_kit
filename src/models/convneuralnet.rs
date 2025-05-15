@@ -159,7 +159,7 @@ impl ConvLayer {
         padded
     }
 
-    /// Return the output of the layer given input list of matrices a
+    /// Return the output of the layer given input list of matrices
     pub fn feedforward(&mut self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
         let f_depth = self.filters[0].len();
         let f_rows = self.filters[0][0].row_count();
@@ -174,8 +174,8 @@ impl ConvLayer {
 
         // Convert convolution to matrix multiplication
         let mut flatmap: Vec<f64> = Vec::new();
-        for r in (0..self.output_rows).step_by(self.stride) {
-            for c in (0..self.output_cols).step_by(self.stride) {
+        for r in (0..self.output_rows * self.stride).step_by(self.stride) {
+            for c in (0..self.output_cols * self.stride).step_by(self.stride) {
                 for l in 0..self.padded_input.len() {
                     flatmap.append(
                         &mut self.padded_input[l]
@@ -236,6 +236,7 @@ impl ConvLayer {
         self.output.clone()
     }
 
+    /// Compute and save layer parameter gradients and return input gradients
     pub fn backprop(&mut self, d_output: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
         let f_depth = self.filters[0].len();
         let f_rows = self.filters[0][0].row_count();
@@ -272,7 +273,7 @@ impl ConvLayer {
                 .collect::<Vec<_>>()
                 .concat(),
         );
-        println!("CONVERTED DOUT: {:?}", converted_dout);
+
         self.d_filters.push(
             (self.converted_input.clone() * converted_dout.clone())
                 .columns()
@@ -281,7 +282,7 @@ impl ConvLayer {
                     Matrix::from_flatmap(f_rows * f_cols, f_depth, m.as_vec())
                         .columns()
                         .into_iter()
-                        .map(|f| Matrix::from_flatmap(f_rows, f_cols, f.as_vec()))
+                        .map(|f| Matrix::from_flatmap(f_cols, f_rows, f.as_vec()).transpose())
                         .collect::<Vec<_>>()
                 })
                 .collect::<Vec<_>>(),
@@ -306,8 +307,6 @@ impl ConvLayer {
         })
         .collect::<Vec<_>>();
 
-        println!("d_input IN BACKPROP:");
-
         let mut d_input: Vec<Matrix<f64>> = Vec::new();
         for l in 0..f_depth {
             let mut grad: Matrix<f64> = Matrix::new(
@@ -329,12 +328,7 @@ impl ConvLayer {
                     },
                     Matrix::from_flatmap(f_cols, f_rows, d_input_subs[l][i].as_vec()).transpose(),
                 );
-                println!(
-                    "l = {:}; i = {:}, d_input = {:?}, new_mat = {:?}",
-                    l, i, d_input_subs[l][i], new_mat
-                );
                 grad = grad + new_mat;
-                print!("grad = {:?}", grad);
             }
             d_input.push(grad.get_submatrix(
                 Range {
@@ -354,79 +348,119 @@ impl ConvLayer {
 
 #[derive(Clone)]
 pub enum PoolType {
-    Max,
-    Average,
+    MAX,
+    AVG,
+    SUM,
 }
 
 #[derive(Clone)]
 pub struct PoolLayer {
     pool_type: PoolType,
-    window_size: usize,
+    w_rows: usize,
+    w_cols: usize,
     stride: usize,
+    input: Vec<Matrix<f64>>,
 }
 
 impl PoolLayer {
-    pub fn new(pool_type: PoolType, window_size: usize, stride: usize) -> PoolLayer {
+    pub fn new(pool_type: PoolType, w_rows: usize, w_cols: usize, stride: usize) -> PoolLayer {
         PoolLayer {
             pool_type,
-            window_size,
+            w_rows,
+            w_cols,
             stride,
+            input: Vec::new(),
         }
     }
 
-    pub fn forward(&self, input: &Matrix<f64>) -> Matrix<f64> {
-        match self.pool_type {
-            PoolType::Max => self.max_pool(input),
-            PoolType::Average => self.avg_pool(input),
-        }
-    }
+    /// Returns the output of the layer given input list of matrices
+    pub fn feedforward(&mut self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+        self.input = input.clone();
 
-    fn max_pool(&self, input: &Matrix<f64>) -> Matrix<f64> {
-        let output_rows = (input.row_count() - self.window_size) / self.stride + 1;
-        let output_cols = (input.col_count() - self.window_size) / self.stride + 1;
-        let mut result = Matrix::new(output_rows, output_cols);
+        let output_rows = (input[0].row_count() - self.w_rows) / self.stride + 1;
+        let output_cols = (input[0].col_count() - self.w_cols) / self.stride + 1;
 
-        for i in 0..output_rows {
-            for j in 0..output_cols {
-                let mut max_val = f64::NEG_INFINITY;
-                for wi in 0..self.window_size {
-                    for wj in 0..self.window_size {
-                        let input_i = i * self.stride + wi;
-                        let input_j = j * self.stride + wj;
-                        if input_i < input.row_count() && input_j < input.col_count() {
-                            max_val = max_val.max(input.get(input_i, input_j));
-                        }
-                    }
+        let mut output: Vec<Matrix<f64>> = Vec::new();
+        for l in 0..input.len() {
+            let mut flatmap: Vec<f64> = Vec::new();
+            for c in (0..output_cols * self.stride).step_by(self.stride) {
+                for r in (0..output_rows * self.stride).step_by(self.stride) {
+                    let sub_mat = input[l]
+                        .get_submatrix(
+                            Range {
+                                start: r,
+                                end: r + self.w_rows,
+                            },
+                            Range {
+                                start: c,
+                                end: c + self.w_cols,
+                            },
+                        )
+                        .as_vec();
+                    flatmap.push(match self.pool_type {
+                        PoolType::MAX => sub_mat.iter().cloned().fold(0. / 0., f64::max),
+                        PoolType::AVG => sub_mat.iter().sum::<f64>() / (sub_mat.len() as f64),
+                        PoolType::SUM => sub_mat.iter().sum(),
+                    });
                 }
-                result.set(i, j, max_val);
             }
+            output.push(Matrix::from_flatmap(output_rows, output_cols, flatmap));
         }
-        result
+
+        output
     }
 
-    fn avg_pool(&self, input: &Matrix<f64>) -> Matrix<f64> {
-        let output_rows = (input.row_count() - self.window_size) / self.stride + 1;
-        let output_cols = (input.col_count() - self.window_size) / self.stride + 1;
-        let mut result = Matrix::new(output_rows, output_cols);
+    /// Return input gradients
+    pub fn backprop(&self, d_output: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+        let input_rows = self.input[0].row_count();
+        let input_cols = self.input[0].col_count();
 
-        for i in 0..output_rows {
-            for j in 0..output_cols {
-                let mut sum = 0.0;
-                let mut count = 0;
-                for wi in 0..self.window_size {
-                    for wj in 0..self.window_size {
-                        let input_i = i * self.stride + wi;
-                        let input_j = j * self.stride + wj;
-                        if input_i < input.row_count() && input_j < input.col_count() {
-                            sum += input.get(input_i, input_j);
-                            count += 1;
+        let mut d_input: Vec<Matrix<f64>> = Vec::new();
+        for l in 0..d_output.len() {
+            let mut grad: Matrix<f64> = Matrix::new(input_rows, input_cols);
+            for r in 0..d_output[l].row_count() {
+                for c in 0..d_output[l].col_count() {
+                    let mut new_mat = Matrix::new(input_rows, input_cols);
+                    let row_range = Range {
+                        start: r * self.stride,
+                        end: r * self.stride + self.w_rows,
+                    };
+                    let col_range = Range {
+                        start: c * self.stride,
+                        end: c * self.stride + self.w_cols,
+                    };
+                    let mut sub_mat = Matrix::new(self.w_rows, self.w_cols);
+                    match self.pool_type {
+                        PoolType::MAX => {
+                            let input_sub = self.input[l]
+                                .get_submatrix(row_range.clone(), col_range.clone())
+                                .as_vec();
+                            let argmax =
+                                input_sub
+                                    .iter()
+                                    .enumerate()
+                                    .fold(0, |curr_idx, (idx, val)| {
+                                        if input_sub[curr_idx] > *val {
+                                            curr_idx
+                                        } else {
+                                            idx
+                                        }
+                                    });
+                            sub_mat.set(argmax % self.w_cols, argmax / self.w_cols, 1.);
                         }
+                        PoolType::AVG => {
+                            sub_mat.apply_to_all(&|_| 1. / (self.w_rows * self.w_cols) as f64)
+                        }
+                        PoolType::SUM => sub_mat.apply_to_all(&|_| 1.),
                     }
+                    new_mat.set_submatrix(row_range, col_range, sub_mat);
+                    grad = grad + new_mat;
                 }
-                result.set(i, j, sum / count as f64);
             }
+            d_input.push(grad);
         }
-        result
+
+        d_input
     }
 }
 
@@ -491,65 +525,70 @@ impl ConvNeuralNet {
         ConvNeuralNet { layers }
     }
 
-    /// Computes network output 
-    pub fn compute_final_layer(&self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
-        let mut current_input = input.clone();
-        
-        for layer in &self.layers {
-            match layer {
-                Layer::Conv(conv_layer) => {
-                    let mut conv = conv_layer.clone();
-                    current_input = conv.feedforward(&current_input);
-                }
-                Layer::Pool(pool_layer) => {
-                    let mut pooled_output = Vec::new();
-                    for channel in &current_input {
-                        pooled_output.push(pool_layer.forward(channel));
-                    }
-                    current_input = pooled_output;
-                }
-                Layer::Full(full_layer) => {
-                    let mut flat_input = Matrix::new(current_input[0].row_count() * current_input[0].col_count() * current_input.len(), 1);
-                    let mut i = 0;
-                    for channel in &current_input {
-                        for r in 0..channel.row_count() {
-                            for c in 0..channel.col_count() {
-                                flat_input.set(i, 0, channel.get(r, c));
-                                i += 1;
-                            }
-                        }
-                    }
-                    current_input = vec![full_layer.forward(&flat_input)];
-                }
-            }
-        }
-        
-        current_input
-    }
+    // Computes network output
+    // pub fn compute_final_layer(&self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+    //     let mut current_input = input.clone();
 
-    /// Classifies input 
-    pub fn classify(&self, input: &Vec<Matrix<f64>>) -> (usize, f64) {
-        let output = self.compute_final_layer(input);
-        let output_matrix = &output[0];  // FClayer is single matrix
-        
-        let mut max_val = f64::NEG_INFINITY;
-        let mut max_idx = 0;
-        
-        for i in 0..output_matrix.row_count() {
-            let val = output_matrix.get(i, 0);
-            if val > max_val {
-                max_val = val;
-                max_idx = i;
-            }
-        }
-        
-        (max_idx, max_val)
-    }
+    //     for layer in &self.layers {
+    //         match layer {
+    //             Layer::Conv(conv_layer) => {
+    //                 let mut conv = conv_layer.clone();
+    //                 current_input = conv.feedforward(&current_input);
+    //             }
+    //             Layer::Pool(pool_layer) => {
+    //                 let mut pooled_output = Vec::new();
+    //                 for channel in &current_input {
+    //                     pooled_output.push(pool_layer.feedforward(channel));
+    //                 }
+    //                 current_input = pooled_output;
+    //             }
+    //             Layer::Full(full_layer) => {
+    //                 let mut flat_input = Matrix::new(
+    //                     current_input[0].row_count()
+    //                         * current_input[0].col_count()
+    //                         * current_input.len(),
+    //                     1,
+    //                 );
+    //                 let mut i = 0;
+    //                 for channel in &current_input {
+    //                     for r in 0..channel.row_count() {
+    //                         for c in 0..channel.col_count() {
+    //                             flat_input.set(i, 0, channel.get(r, c));
+    //                             i += 1;
+    //                         }
+    //                     }
+    //                 }
+    //                 current_input = vec![full_layer.forward(&flat_input)];
+    //             }
+    //         }
+    //     }
 
-    /// gradient of LFI w/ respect to network
-    pub fn compute_gradient(&self, input: Vec<Matrix<f64>>, target: Vec<Matrix<f64>>, loss_function: &LFI) -> CNNGradient {
-        
-    }
+    //     current_input
+    // }
+
+    // Classifies input
+    // pub fn classify(&self, input: &Vec<Matrix<f64>>) -> (usize, f64) {
+    //     let output = self.compute_final_layer(input);
+    //     let output_matrix = &output[0]; // FClayer is single matrix
+
+    //     let mut max_val = f64::NEG_INFINITY;
+    //     let mut max_idx = 0;
+
+    //     for i in 0..output_matrix.row_count() {
+    //         let val = output_matrix.get(i, 0);
+    //         if val > max_val {
+    //             max_val = val;
+    //             max_idx = i;
+    //         }
+    //     }
+
+    //     (max_idx, max_val)
+    // }
+
+    // gradient of LFI w/ respect to network
+    // pub fn compute_gradient(&self, input: Vec<Matrix<f64>>, target: Vec<Matrix<f64>>, loss_function: &LFI) -> CNNGradient {
+
+    // }
 }
 
 #[cfg(test)]
@@ -557,16 +596,17 @@ mod conv_tests {
     use std::{fs::File, ops::Range, vec};
 
     use super::ConvLayer;
+    use super::PoolLayer;
+    use super::PoolType;
     use crate::math::activation::AFI;
     use matrix_kit::dynamic::matrix::Matrix;
 
     #[test]
-    fn test_conv() {
+    fn test_conv_layer() {
         let x = vec![
             Matrix::from_flatmap(3, 3, vec![1., 2., 3., 4., 5., 6., 7., 8., 9.]),
             Matrix::from_flatmap(3, 3, vec![9., 8., 7., 6., 5., 4., 3., 2., 1.]),
         ];
-        // println!("x = {:?}", x[0].get_diagonal());
         let filters = vec![
             vec![
                 Matrix::from_flatmap(2, 2, vec![1., 2., 3., 4.]),
@@ -578,37 +618,74 @@ mod conv_tests {
             ],
         ];
         let biases = Matrix::from_flatmap(2, 1, vec![1., 5.]);
-        let correct = vec![
+        let correct_ff = vec![
             Matrix::from_flatmap(2, 2, vec![47., 56., 74., 83.]),
             Matrix::from_flatmap(2, 2, vec![22., 25., 31., 34.]),
         ];
 
-        println!(
-            "TESTING SUBMATRIX: {:?}",
-            x[0].get_submatrix(Range { start: 0, end: 1 }, Range { start: 0, end: 1 })
-        );
-
         let mut cl = ConvLayer::new(filters, biases, AFI::ReLu, 1, 0);
         let out = cl.feedforward(&x);
 
-        println!("Correct:");
-        print_mat_list(&correct);
-        println!("Outputted:");
-        print_mat_list(&out);
-        assert_eq!(out, correct);
+        debug_assert_eq!(out, correct_ff);
 
         let d_output = vec![
             Matrix::from_flatmap(2, 2, vec![1., 1., 1., 1.]),
-            Matrix::from_flatmap(2, 2, vec![1., 1., 1., 1.]),
+            Matrix::from_flatmap(2, 2, vec![2., 1., 1., 1.]),
         ];
+        let correct_d_input = vec![
+            Matrix::from_flatmap(3, 3, vec![3., 6., 3., 7., 15., 8., 4., 9., 5.]),
+            Matrix::from_flatmap(3, 3, vec![1., 1., 0., 1., 3., 1., 0., 1., 1.]),
+        ];
+        let correct_d_filters = vec![vec![
+            vec![
+                Matrix::from_flatmap(2, 2, vec![12., 16., 24., 28.]),
+                Matrix::from_flatmap(2, 2, vec![28., 24., 16., 12.]),
+            ],
+            vec![
+                Matrix::from_flatmap(2, 2, vec![13., 18., 28., 33.]),
+                Matrix::from_flatmap(2, 2, vec![37., 32., 22., 17.]),
+            ],
+        ]];
+        let correct_d_biases = vec![Matrix::from_flatmap(2, 1, vec![4., 5.])];
         let d_input = cl.backprop(&d_output);
-        println!("d_input:");
-        print_mat_list(&d_input);
-        println!("d_filters:");
-        for i in 0..cl.d_filters[0].len() {
-            print_mat_list(&cl.d_filters[0][i]);
-        }
-        println!("d_biases: {:?}", cl.d_biases);
+
+        debug_assert_eq!(d_input, correct_d_input);
+        debug_assert_eq!(cl.d_filters, correct_d_filters);
+        debug_assert_eq!(cl.d_biases, correct_d_biases);
+    }
+
+    #[test]
+    fn test_pool_layer() {
+        let x = vec![
+            Matrix::from_flatmap(3, 3, vec![1., 2., 3., 4., 5., 6., 7., 8., 9.]),
+            Matrix::from_flatmap(3, 3, vec![9., 8., 7., 6., 5., 4., 3., 2., 1.]),
+        ];
+
+        let mut pl_max = PoolLayer::new(PoolType::MAX, 2, 2, 1);
+        let out_max = pl_max.feedforward(&x);
+        let out_max_correct = vec![
+            Matrix::from_flatmap(2, 2, vec![5., 6., 8., 9.]),
+            Matrix::from_flatmap(2, 2, vec![9., 8., 6., 5.]),
+        ];
+        debug_assert_eq!(out_max, out_max_correct);
+
+        let mut pl_sum = PoolLayer::new(PoolType::SUM, 2, 2, 1);
+        let out_sum = pl_sum.feedforward(&x);
+        let out_sum_correct = vec![
+            Matrix::from_flatmap(2, 2, vec![12., 16., 24., 28.]),
+            Matrix::from_flatmap(2, 2, vec![28., 24., 16., 12.]),
+        ];
+        debug_assert_eq!(out_sum, out_sum_correct);
+
+        let mut pl_avg = PoolLayer::new(PoolType::AVG, 2, 2, 1);
+        let out_avg = pl_avg.feedforward(&x);
+        let out_avg_correct = vec![
+            Matrix::from_flatmap(2, 2, vec![3., 4., 6., 7.]),
+            Matrix::from_flatmap(2, 2, vec![7., 6., 4., 3.]),
+        ];
+        debug_assert_eq!(out_avg, out_avg_correct)
+
+        
     }
 
     fn print_mat_list(mats: &Vec<Matrix<f64>>) {
