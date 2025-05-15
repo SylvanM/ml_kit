@@ -525,62 +525,71 @@ impl ConvNeuralNet {
         ConvNeuralNet { layers }
     }
 
-    /// Computes the output of the network for a given input
-    pub fn compute_final_layer(&self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
-        let mut current_input = input.clone();
-        
-        for layer in &self.layers {
-            match layer {
-                Layer::Conv(conv_layer) => {
-                    let mut conv = conv_layer.clone();
-                    current_input = conv.feedforward(&current_input);
-                }
-                Layer::Pool(pool_layer) => {
-                    let mut pooled_output = Vec::new();
-                    for channel in &current_input {
-                        pooled_output.push(pool_layer.feedforward(channel));
-                    }
-                    current_input = pooled_output;
-                }
-                Layer::Full(full_layer) => {
-                    // Convert input channels to a single matrix for full layer
-                    let mut flat_input = Matrix::new(current_input[0].row_count() * current_input[0].col_count() * current_input.len(), 1);
-                    let mut i = 0;
-                    for channel in &current_input {
-                        for r in 0..channel.row_count() {
-                            for c in 0..channel.col_count() {
-                                flat_input.set(i, 0, channel.get(r, c));
-                                i += 1;
-                            }
-                        }
-                    }
-                    current_input = vec![full_layer.forward(&flat_input)];
-                }
-            }
-        }
-        
-        current_input
-    }
+// Computes network output
+    // pub fn compute_final_layer(&self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+    //     let mut current_input = input.clone();
 
-    /// Classifies an input and returns the predicted class and confidence
-    pub fn classify(&self, input: &Vec<Matrix<f64>>) -> (usize, f64) {
-        let output = self.compute_final_layer(input);
-        let output_matrix = &output[0];  // Full layer output is a single matrix
-        
-        let mut max_val = f64::NEG_INFINITY;
-        let mut max_idx = 0;
-        
-        for i in 0..output_matrix.row_count() {
-            let val = output_matrix.get(i, 0);
-            if val > max_val {
-                max_val = val;
-                max_idx = i;
-            }
-        }
-        
-        (max_idx, max_val)
-    }
-}
+    //     for layer in &self.layers {
+    //         match layer {
+    //             Layer::Conv(conv_layer) => {
+    //                 let mut conv = conv_layer.clone();
+    //                 current_input = conv.feedforward(&current_input);
+    //             }
+    //             Layer::Pool(pool_layer) => {
+    //                 let mut pooled_output = Vec::new();
+    //                 for channel in &current_input {
+    //                     pooled_output.push(pool_layer.feedforward(channel));
+    //                 }
+    //                 current_input = pooled_output;
+    //             }
+    //             Layer::Full(full_layer) => {
+    //                 let mut flat_input = Matrix::new(
+    //                     current_input[0].row_count()
+    //                         * current_input[0].col_count()
+    //                         * current_input.len(),
+    //                     1,
+    //                 );
+    //                 let mut i = 0;
+    //                 for channel in &current_input {
+    //                     for r in 0..channel.row_count() {
+    //                         for c in 0..channel.col_count() {
+    //                             flat_input.set(i, 0, channel.get(r, c));
+    //                             i += 1;
+    //                         }
+    //                     }
+    //                 }
+    //                 current_input = vec![full_layer.forward(&flat_input)];
+    //             }
+    //         }
+    //     }
+
+    //     current_input
+    // }
+
+    // Classifies input
+    // pub fn classify(&self, input: &Vec<Matrix<f64>>) -> (usize, f64) {
+    //     let output = self.compute_final_layer(input);
+    //     let output_matrix = &output[0]; // FClayer is single matrix
+
+    //     let mut max_val = f64::NEG_INFINITY;
+    //     let mut max_idx = 0;
+
+    //     for i in 0..output_matrix.row_count() {
+    //         let val = output_matrix.get(i, 0);
+    //         if val > max_val {
+    //             max_val = val;
+    //             max_idx = i;
+    //         }
+    //     }
+
+    //     (max_idx, max_val)
+    // }
+
+    // gradient of LFI w/ respect to network
+    // pub fn compute_gradient(&self, input: Vec<Matrix<f64>>, target: Vec<Matrix<f64>>, loss_function: &LFI) -> CNNGradient {
+
+    // }
+
 
 #[cfg(test)]
 mod conv_tests {
