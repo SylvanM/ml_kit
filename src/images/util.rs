@@ -73,6 +73,12 @@ pub fn write_rgba_matrices(rgba: Vec<Matrix<f64>>, path: &str) {
 
 #[cfg(test)]
 mod test_image_util {
+    use std::fs::File;
+
+    use matrix_kit::dynamic::matrix::Matrix;
+
+    use crate::{math::{activation::AFI, svd::{compressed_svd, svd, truncate}}, models::neuralnet::NeuralNet};
+
     use super::{read_rgba_matrices, write_rgba_matrices};
 
 
@@ -83,8 +89,73 @@ mod test_image_util {
     }
 
     #[test]
+    fn factor_image() {
+        let channels = super::read_rgba_matrices("testing/files/sheep.png");
+
+        // let channels: Vec<Matrix<f64>> = (0..4).map(|_|
+        //     Matrix::random_normal(3, 4, 0.0, 1.0)
+        // ).collect();
+
+        println!("Image is [{} x {}]", channels[0].row_count(), channels[0].col_count());
+
+        let image_svd_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = channels.iter().map(|channel|
+            svd(channel)
+        ).collect();
+
+        for i in 0..4 {
+            let (u, v, s) = image_svd_rgba[i].clone();
+
+            // We are going to write this as a neural network, because we already have code that can store it!
+
+            let network = NeuralNet::new(vec![
+                v.transpose(), s.clone(), u.clone()], 
+                vec![
+                    Matrix::new(v.col_count(), 1),
+                    Matrix::new(s.row_count(), 1),
+                    Matrix::new(u.row_count(), 1),
+                ], 
+                vec![AFI::Identity ; 3]
+            );
+
+            // Write this down!
+            let path = format!("testing/files/rgba_sheep_{}.mlk_nn", i);
+            let mut file = match File::create(path) {
+                Ok(f) => f,
+                Err(e) => panic!("Error opening file: {:?}", e),
+            };
+
+            network.write_to_file(&mut file);
+        }
+    }
+
+    #[test]
     fn test_compression() {
-        let channels = read_rgba_matrices("testing/files/sheep.png");
+        let compressed_sizes = vec![240, 200, 150, 100, 10];
+        let recovered_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = (0..4).map(|i| {
+                let path = format!("testing/files/rgba_sheep_{}.mlk_nn", i);
+                let mut file = match File::open(path) {
+                    Ok(f) => f,
+                    Err(e) => panic!("Error writing file: {:?}", e),
+                };
+                let network = NeuralNet::from_file(&mut file);
+                let v = network.weights[0].transpose();
+                let s = network.weights[1].clone();
+                let u = network.weights[2].clone();
+
+                (u, v, s)
+            }  
+        ).collect();
+
+        for r in compressed_sizes {
+            let truncated_rgba = recovered_rgba.iter().map(|(u, v, s)| {
+                    let (u_r, v_r, s_r) = truncate(u, v, &s.get_diagonal(), r);
+                    u_r * Matrix::from_diagonal(s_r) * v_r.transpose()
+                }
+            ).collect();
+
+            let path = format!("testing/files/compressed_sheep_{}.png", r);
+            write_rgba_matrices(truncated_rgba, &path);
+        }
     }
 
 }

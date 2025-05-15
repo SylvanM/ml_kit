@@ -347,7 +347,7 @@ fn format_svd(u: &mut Matrix<f64>, v: &mut Matrix<f64>, s: &mut Matrix<f64>) {
 /// U^T * A * V = diag(S)
 /// 
 /// This is an implementation of Algorithm 8.6.2 from Golub and van Loan
-fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+fn tall_svd_factorization(matrix: &Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
 
     let m = matrix.row_count();
     let n = matrix.col_count();
@@ -414,6 +414,37 @@ fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f
     (u, v, b)
 }
 
+
+
+/// Computes the Singular Value Decomposition of an `m` by `n` matrix `A`,
+/// returning the orthogonal matrices `U` and `V`, and the diagonal matrix
+/// `S`. The columns of `V` are the right singular vectors of `A`, and the 
+/// columns of `U` are the left singular vectors. The diagonal of `S` 
+/// is the singular values of `A`.
+pub fn svd(matrix: &Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
+    let m = matrix.row_count();
+    let n = matrix.col_count();
+
+    if m >= n {
+        tall_svd_factorization(matrix)
+    } else {
+        let transposed = matrix.transpose();
+        let (u, v, s) = tall_svd_factorization(&transposed);
+        (v, u, s.transpose())
+    }
+}
+
+pub fn truncate(
+    u: &Matrix<f64>, v: &Matrix<f64>, s: &Vec<f64>, r: usize
+) -> (Matrix<f64>, Matrix<f64>, Vec<f64>) {
+
+    let u_r = u.get_submatrix(0..u.row_count(), 0..r);
+    let v_r = v.get_submatrix(0..v.col_count(), 0..r);
+    let s_r = s[0..r].to_vec();
+
+    (u_r, v_r, s_r)
+}
+
 /// Computes only the `r` most significant singular values and vectors,
 /// used for compressing the data contained in matrix `A`.
 /// 
@@ -424,34 +455,12 @@ fn svd_factorization(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f
 /// U will be m x r
 /// V will be n x r
 pub fn compressed_svd(
-    matrix: Matrix<f64>, r: usize
+    matrix: &Matrix<f64>, r: usize
 ) -> (Matrix<f64>, Matrix<f64>, Vec<f64>) {
 
-    let (u, v, s) = svd_factorization(matrix);
-
-    let u_r = u.get_submatrix(0..u.row_count(), 0..r);
-    let v_r = v.get_submatrix(0..v.row_count(), 0..r);
-    let s_r = s.get_submatrix(0..r, 0..r);
-
-    (u_r, v_r, s_r.get_diagonal())
-}
-
-/// Computes the Singular Value Decomposition of an `m` by `n` matrix `A`,
-/// returning the orthogonal matrices `U` and `V`, and the diagonal matrix
-/// `S`. The columns of `V` are the right singular vectors of `A`, and the 
-/// columns of `U` are the left singular vectors. The diagonal of `S` 
-/// is the singular values of `A`.
-pub fn svd(matrix: Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Matrix<f64>) {
-    let m = matrix.row_count();
-    let n = matrix.col_count();
-
-    if m >= n {
-        svd_factorization(matrix)
-    } else {
-        let transposed = matrix.transpose();
-        let (u, v, s) = svd_factorization(transposed);
-        (v, u, s.transpose())
-    }
+    let (u, v, s) = svd(matrix);
+    
+    truncate(&u, &v, &s.get_diagonal(), r)
 }
 
 #[cfg(test)]
@@ -551,7 +560,7 @@ mod svd_math_tests {
             -1.0, 2.0, -3.0, -4.0,
         ]);
 
-        let (u, v, s) = svd(a.clone());
+        let (u, v, s) = svd(&a);
 
         println!("Orthogonal check!");
         println!("{:?}", u.transpose() * u.clone());
@@ -566,24 +575,24 @@ mod svd_math_tests {
         println!("Can we recover?");
         println!("{:?}", u.clone() * s.clone() * v.transpose());
 
-        // for _ in 1..=1 {
-        //     let mut rng = rand::rng();
+        for _ in 1..=1 {
+            let mut rng = rand::rng();
 
-        //     let n = rng.random_range(2..=40);
-        //     let m = rng.random_range(2..=40);
+            let n = 4032;
+            let m = 3024;
 
-        //     println!("SVD-ing [{} x {}]", m, n);
+            println!("SVD-ing [{} x {}]", m, n);
 
-        //     let a = Matrix::random_normal(m, n, 0.0, 1.0);
+            let a = Matrix::random_normal(m, n, 0.0, 1.0);
 
-        //     let (u, v, s) = svd(a.clone());
+            let (u, v, s) = svd(&a);
 
-        //     let alleged_a = u.clone() * s.clone() * v.transpose();
-        //     let alleged_s = u.transpose() * a.clone() * v.clone();
+            let alleged_a = u.clone() * s.clone() * v.transpose();
+            let alleged_s = u.transpose() * a.clone() * v.clone();
 
-        //     assert!(matrices_close(&alleged_a, &a));
-        //     assert!(matrices_close(&alleged_s, &s));
-        // }
+            assert!(matrices_close(&alleged_a, &a));
+            assert!(matrices_close(&alleged_s, &s));
+        }
     }
 
     #[test]
@@ -594,7 +603,7 @@ mod svd_math_tests {
             -1.0, 2.0, -3.0, -4.0,
         ]);
 
-        let (u, v, s) = compressed_svd(a.clone(), 2);
+        let (u, v, s) = compressed_svd(&a, 2);
 
         println!("Orthogonal check!");
         println!("{:?}", u.transpose() * u.clone());
