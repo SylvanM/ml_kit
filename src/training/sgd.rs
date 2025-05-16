@@ -440,7 +440,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
     /// Performs a step of GD on a mini-batch of data, returning the size
     /// of the gradient vector (before rescaling) so we can see how far from a local minimum we are.
-    pub fn sgd_batch_step<GUS: GradientUpdateSchedule>(
+    pub fn sgd_batch_step<GUS: GradientUpdateSchedule<NNGradient>>(
         &self,
         batch: Vec<DI>,
         neuralnet: &mut NeuralNet,
@@ -469,7 +469,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
     /// * `lrs` - A learning rate schedule
     /// * `epochs` - the number of epochs to run
     /// * `batch_size` - the number of training items in each batch
-    pub fn train_sgd<GUS: GradientUpdateSchedule>(
+    pub fn train_sgd<GUS: GradientUpdateSchedule<NNGradient>>(
         &self,
         neuralnet: &mut NeuralNet,
         gus: &mut GUS,
@@ -503,7 +503,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
     }
 
     /// Performs a step of SGD on a mini-batch of data for a CNN
-    pub fn sgd_cnn_batch_step<GUS: GradientUpdateSchedule>(
+    pub fn sgd_cnn_batch_step<GUS: GradientUpdateSchedule<CNNGradient>>(
         &self,
         batch: Vec<DI>,
         cnn: &mut ConvNeuralNet,
@@ -526,7 +526,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
     }
 
     /// Trains a CNN using SGD
-    pub fn train_cnn_sgd<GUS: GradientUpdateSchedule>(
+    pub fn train_cnn_sgd<GUS: GradientUpdateSchedule<CNNGradient>>(
         &self,
         cnn: &mut ConvNeuralNet,
         gus: &mut GUS,

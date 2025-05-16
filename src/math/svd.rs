@@ -623,4 +623,13 @@ mod svd_math_tests {
             });
         println!("{:?}", u.clone() * s_matrix * v.transpose());
     }
+
+    #[test]
+    fn visualize_singular_value_distribution() {
+        // We want to detect if there is some fall-off of singular values, after which 
+        // we can safely begin truncating. This allows for a sort of ``automatic''
+        // compression.
+
+        
+    }
 }

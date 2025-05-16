@@ -92,10 +92,6 @@ mod test_image_util {
     fn factor_image() {
         let channels = super::read_rgba_matrices("testing/files/sheep.png");
 
-        // let channels: Vec<Matrix<f64>> = (0..4).map(|_|
-        //     Matrix::random_normal(3, 4, 0.0, 1.0)
-        // ).collect();
-
         println!("Image is [{} x {}]", channels[0].row_count(), channels[0].col_count());
 
         let image_svd_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = channels.iter().map(|channel|
@@ -145,6 +141,12 @@ mod test_image_util {
                 (u, v, s)
             }  
         ).collect();
+
+        println!("Singular values for Sheep Picture...");
+        println!("RED:  \t{:?}", recovered_rgba[0].2.get_diagonal());
+        println!("GREEN:\t{:?}", recovered_rgba[1].2.get_diagonal());
+        println!("BLUE: \t{:?}", recovered_rgba[2].2.get_diagonal());
+        println!("ALPHA:\t{:?}", recovered_rgba[3].2.get_diagonal());
 
         for r in compressed_sizes {
             let truncated_rgba = recovered_rgba.iter().map(|(u, v, s)| {

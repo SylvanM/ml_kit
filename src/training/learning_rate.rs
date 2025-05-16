@@ -6,6 +6,8 @@ use std::usize;
 use matrix_kit::dynamic::matrix::Matrix;
 use rand_distr::num_traits::Pow;
 
+use crate::models::convneuralnet::Layer;
+
 use super::sgd::{NNGradient, CNNGradient};
 
 /// A generalized version of a learning rate schedule, this changes the gradient
@@ -128,7 +130,7 @@ impl GradientUpdateSchedule<CNNGradient> for AdaGrad {
                     self.rate / z.sqrt()
                 }
             })
-            .hadamard(&grad_matrix);
+            .hadamard(grad_matrix);
             
         // reshapes back to cnn
         let mut i = 0;
@@ -176,7 +178,7 @@ impl GradientUpdateSchedule<CNNGradient> for AdaGrad {
                     }
                     full.biases = new_biases;
                 }
-                _ => {} /
+                _ => {}
             }
         }
     }
