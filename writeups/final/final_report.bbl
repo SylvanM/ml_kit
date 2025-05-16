@@ -16,5 +16,50 @@
   {}
 \endgroup
 
+
+\refsection{0}
+  \datalist[entry]{cms/global//global/global}
+    \entry{golub13}{book}{}
+      \name{author}{2}{}{%
+        {{hash=8b856da92ad549d323acc679ecf7f474}{%
+           family={Golub},
+           familyi={G\bibinitperiod},
+           given={Gene\bibnamedelima H.},
+           giveni={G\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=701dffbe58a1ce899093fee54a7fc6e7}{%
+           family={Loan},
+           familyi={L\bibinitperiod},
+           given={Charles\bibnamedelima F.},
+           giveni={C\bibinitperiod\bibinitdelim F\bibinitperiod},
+           prefix={van},
+           prefixi={v\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {JHU Press}%
+      }
+      \strng{namehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{fullhash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{bibnamehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{authorbibnamehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{authornamehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{authorfullhash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{Fourth}
+      \field{isbn}{1421407949 9781421407944}
+      \field{title}{Matrix Computations}
+      \field{year}{2013}
+      \verb{urlraw}
+      \verb http://www.cs.cornell.edu/cv/GVL4/golubandvanloan.htm
+      \endverb
+      \verb{url}
+      \verb http://www.cs.cornell.edu/cv/GVL4/golubandvanloan.htm
+      \endverb
+      \keyw{GvL cauchy circulant courant-fischer determinant dft eigenvalues interlacing linear.algebra matrix pseudoinverse textbook}
+    \endentry
+  \enddatalist
+\endrefsection
 \endinput
 
