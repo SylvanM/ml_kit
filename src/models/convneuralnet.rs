@@ -1,7 +1,8 @@
-use crate::math::loss::LFI;
+use crate::math::loss::{self, LFI};
+use crate::training::dataset::{DataItem, DataSet};
 use core::panic;
 use matrix_kit::dynamic::matrix::Matrix;
-use rand_distr::Distribution;
+use rand_distr::{Distribution, Normal};
 use std::ops::{
     Add, AddAssign, Div, DivAssign, Index, IndexMut, Mul, MulAssign, Range, Sub, SubAssign,
 };
@@ -26,42 +27,42 @@ pub enum Layer {
     Full(FullLayer),
 }
 
-impl Layer {
-    pub fn feedforward(self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
-        match self {
-            Layer::Conv(mut conv_layer) => conv_layer.feedforward(input),
-            Layer::Pool(mut pool_layer) => pool_layer.feedforward(input),
-            Layer::Full(mut full_layer) => {
-                let flattend_input = Matrix::from_flatmap(
-                    input[0].row_count() * input[0].col_count() * input.len(),
-                    1,
-                    input
-                        .into_iter()
-                        .map(|m| m.as_vec())
-                        .collect::<Vec<_>>()
-                        .concat(),
-                );
-                vec![full_layer.feedforward(&flattend_input)]
-            }
-        }
-    }
+// impl Layer {
+//     pub fn feedforward(self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+//         match self {
+//             Layer::Conv(mut conv_layer) => conv_layer.feedforward(input),
+//             Layer::Pool(mut pool_layer) => pool_layer.feedforward(input),
+//             Layer::Full(mut full_layer) => {
+//                 let flattend_input = Matrix::from_flatmap(
+//                     input[0].row_count() * input[0].col_count() * input.len(),
+//                     1,
+//                     input
+//                         .into_iter()
+//                         .map(|m| m.as_vec())
+//                         .collect::<Vec<_>>()
+//                         .concat(),
+//                 );
+//                 vec![full_layer.feedforward(&flattend_input)]
+//             }
+//         }
+//     }
 
-    pub fn backprop(self, d_output: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
-        match self {
-            Layer::Conv(mut conv_layer) => conv_layer.backprop(d_output),
-            Layer::Pool(pool_layer) => pool_layer.backprop(d_output),
-            Layer::Full(mut full_layer) => vec![full_layer.backprop(&d_output[0])],
-        }
-    }
+//     pub fn backprop(self, d_output: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+//         match self {
+//             Layer::Conv(mut conv_layer) => conv_layer.backprop(d_output),
+//             Layer::Pool(pool_layer) => pool_layer.backprop(d_output),
+//             Layer::Full(mut full_layer) => vec![full_layer.backprop(&d_output[0])],
+//         }
+//     }
 
-    pub fn update_params(self, step_size: f64) {
-        match self {
-            Layer::Conv(mut conv_layer) => conv_layer.update_params(step_size),
-            Layer::Pool(pool_layer) => pool_layer.update_params(step_size),
-            Layer::Full(mut full_layer) => full_layer.update_params(step_size),
-        }
-    }
-}
+//     pub fn update_params(self, step_size: f64) {
+//         match self {
+//             Layer::Conv(mut conv_layer) => conv_layer.update_params(step_size),
+//             Layer::Pool(pool_layer) => pool_layer.update_params(step_size),
+//             Layer::Full(mut full_layer) => full_layer.update_params(step_size),
+//         }
+//     }
+// }
 
 #[derive(Clone)]
 pub struct ConvLayer {
@@ -268,11 +269,16 @@ impl ConvLayer {
         })
         .collect();
 
+        // Add bias
+        for l in 0..self.filters.len() {
+            output[l].apply_to_all(&|x| x + self.biases.get(l, 0));
+        }
+
         self.pre_act_output = output.clone();
 
         // Apply activation and add bias
         for l in 0..self.filters.len() {
-            output[l].apply_to_all(&|x| self.act_func.evaluate(x + self.biases.get(l, 0)));
+            output[l].apply_to_all(&|x| self.act_func.evaluate(x));
         }
 
         output
@@ -411,6 +417,22 @@ impl ConvLayer {
         self.d_filters = Vec::new();
         self.d_biases = Vec::new();
     }
+
+    pub fn grad_l2_norm_squared(&self) -> f64 {
+        let mut norm = 0.;
+
+        for n in 0..self.d_biases.len() {
+            norm = norm + self.d_biases[n].l2_norm_squared();
+
+            for l in 0..self.filters.len() {
+                for d in 0..self.filters[l].len() {
+                    norm = norm + self.d_filters[n][l][d].l2_norm_squared();
+                }
+            }
+        }
+
+        norm
+    }
 }
 
 #[derive(Clone)]
@@ -521,24 +543,32 @@ impl PoolLayer {
                                             idx
                                         }
                                     });
-                            sub_mat.set(argmax % self.w_cols, argmax / self.w_cols, 1.);
+                            sub_mat.set(
+                                argmax % self.w_cols,
+                                argmax / self.w_cols,
+                                d_output[l].get(r, c),
+                            );
                         }
-                        PoolType::AVG => {
-                            sub_mat.apply_to_all(&|_| 1. / (self.w_rows * self.w_cols) as f64)
-                        }
-                        PoolType::SUM => sub_mat.apply_to_all(&|_| 1.),
+                        PoolType::AVG => sub_mat.apply_to_all(&|_| {
+                            d_output[l].get(r, c) / (self.w_rows * self.w_cols) as f64
+                        }),
+                        PoolType::SUM => sub_mat.apply_to_all(&|_| d_output[l].get(r, c)),
                     }
                     new_mat.set_submatrix(row_range, col_range, sub_mat);
                     grad = grad + new_mat;
                 }
             }
+
             d_input.push(grad);
         }
-
         d_input
     }
 
     pub fn update_params(&self, _step_size: f64) {}
+
+    pub fn grad_l2_norm_squared(&self) -> f64 {
+        0.
+    }
 }
 
 #[derive(Clone)]
@@ -638,17 +668,26 @@ impl FullLayer {
     }
 
     pub fn update_params(&mut self, step_size: f64) {
-        let num_samples = self.d_biases.len();
-
-        for n in 0..num_samples {
+        for n in 0..self.d_biases.len() {
             self.biases =
                 self.biases.clone() - self.d_biases[n].applying_to_all(&|x| x * step_size);
             self.weights =
-                self.weights.clone() - self.d_weights[n].applying_to_all(&|x| x * step_size);
+                self.biases.clone() - self.d_weights[n].applying_to_all(&|x| x * step_size);
         }
 
         self.d_weights = Vec::new();
         self.d_biases = Vec::new();
+    }
+
+    pub fn grad_l2_norm_squared(&self) -> f64 {
+        let mut norm = 0.;
+
+        for n in 0..self.d_biases.len() {
+            norm = norm + self.d_biases[n].l2_norm_squared();
+            norm = norm + self.d_weights[n].l2_norm_squared();
+        }
+
+        norm
     }
 }
 
@@ -663,14 +702,14 @@ impl ConvNeuralNet {
     }
 
     /// Computes network output
-    pub fn compute_final_layer(self, input: &Matrix<f64>) -> Matrix<f64> {
-        let mut current_input = vec![input.clone()];
+    pub fn compute_final_layer(&mut self, input: &Vec<Matrix<f64>>) -> Vec<Matrix<f64>> {
+        let mut current_input = input.clone();
 
-        for layer in self.layers {
-            current_input = match layer {
-                Layer::Conv(mut conv_layer) => conv_layer.feedforward(&current_input),
-                Layer::Pool(mut pool_layer) => pool_layer.feedforward(&current_input),
-                Layer::Full(mut full_layer) => {
+        for i in 0..self.layers.len() {
+            current_input = match &mut self.layers[i] {
+                Layer::Conv(ref mut conv_layer) => conv_layer.feedforward(&current_input),
+                Layer::Pool(ref mut pool_layer) => pool_layer.feedforward(&current_input),
+                Layer::Full(ref mut full_layer) => {
                     let flattend_input = Matrix::from_flatmap(
                         current_input[0].row_count()
                             * current_input[0].col_count()
@@ -687,81 +726,34 @@ impl ConvNeuralNet {
             }
         }
 
-        current_input[0].clone()
+        current_input.clone()
     }
 
-    // Classifies input
-    // pub fn classify(&self, input: &Vec<Matrix<f64>>) -> (usize, f64) {
-    //     let output = self.compute_final_layer(input);
-    //     let output_matrix = &output[0]; // FClayer is single matrix
-
-    //     let mut max_val = f64::NEG_INFINITY;
-    //     let mut max_idx = 0;
-
-    //     for i in 0..output_matrix.row_count() {
-    //         let val = output_matrix.get(i, 0);
-    //         if val > max_val {
-    //             max_val = val;
-    //             max_idx = i;
-    //         }
-    //     }
-
-    //     (max_idx, max_val)
-    // }
-
-    /// gradient of LFI w/ respect to network
-    pub fn compute_gradient(
-        mut self,
-        input: &Matrix<f64>,
+    /// Populates
+    pub fn populate_gradients(
+        &mut self,
+        input: &Vec<Matrix<f64>>,
         target: Matrix<f64>,
         loss_function: &LFI,
-    ) -> CNNGradient {
-        let mut current_input = vec![input.clone()];
+    ) {
+        let prediction = self.compute_final_layer(input);
 
-        let mut new_layers: Vec<Layer> = Vec::new();
+        let mut curr_deriv = vec![loss_function.derivative(&prediction[0], &target)];
 
-        for layer in self.layers {
-            match layer {
-                Layer::Conv(mut conv_layer) => {
-                    current_input = conv_layer.feedforward(&current_input);
-                    new_layers.push(Layer::Conv(conv_layer));
-                }
-                Layer::Pool(mut pool_layer) => {
-                    current_input = pool_layer.feedforward(&current_input);
-                    new_layers.push(Layer::Pool(pool_layer));
-                }
-                Layer::Full(mut full_layer) => {
-                    let flattend_input = Matrix::from_flatmap(
-                        current_input[0].row_count()
-                            * current_input[0].col_count()
-                            * current_input.len(),
-                        1,
-                        current_input
-                            .into_iter()
-                            .map(|m| m.as_vec())
-                            .collect::<Vec<_>>()
-                            .concat(),
-                    );
-                    current_input = vec![full_layer.feedforward(&flattend_input)];
-                    new_layers.push(Layer::Full(full_layer));
-                }
-            };
-        }
-
-        self.layers = new_layers;
-
-        let prediction = current_input[0].clone();
-
-        let mut new_layers: Vec<Layer> = Vec::new();
-
-        let mut curr_deriv = vec![loss_function.derivative(&prediction, &target)];
-        for layer in self.layers.into_iter().rev() {
-            match layer {
-                Layer::Conv(mut conv_layer) => {
+        for i in (0..self.layers.len()).rev() {
+            print!("Grad List:");
+            for i in 0..curr_deriv.len() {
+                print!("{:?}", curr_deriv[i])
+            }
+            print!("\n\n");
+            match &mut self.layers[i] {
+                Layer::Conv(ref mut conv_layer) => {
                     if curr_deriv[0].col_count() < conv_layer.output_cols {
                         curr_deriv = Matrix::from_flatmap(
                             conv_layer.output_rows * conv_layer.output_cols,
-                            curr_deriv[0].as_vec().len(),
+                            curr_deriv[0].as_vec().len()
+                                / conv_layer.output_rows
+                                / conv_layer.output_cols,
                             curr_deriv[0].as_vec(),
                         )
                         .columns()
@@ -776,13 +768,14 @@ impl ConvNeuralNet {
                         .collect::<Vec<_>>()
                     }
                     curr_deriv = conv_layer.backprop(&curr_deriv);
-                    new_layers.push(Layer::Conv(conv_layer));
                 }
-                Layer::Pool(pool_layer) => {
+                Layer::Pool(ref pool_layer) => {
                     if curr_deriv[0].col_count() < pool_layer.output_cols {
                         curr_deriv = Matrix::from_flatmap(
                             pool_layer.output_rows * pool_layer.output_cols,
-                            curr_deriv[0].as_vec().len(),
+                            curr_deriv[0].as_vec().len()
+                                / pool_layer.output_rows
+                                / pool_layer.output_cols,
                             curr_deriv[0].as_vec(),
                         )
                         .columns()
@@ -797,16 +790,161 @@ impl ConvNeuralNet {
                         .collect::<Vec<_>>()
                     }
                     curr_deriv = pool_layer.backprop(&curr_deriv);
-                    new_layers.push(Layer::Pool(pool_layer));
                 }
-                Layer::Full(mut full_layer) => {
+                Layer::Full(ref mut full_layer) => {
                     curr_deriv = vec![full_layer.backprop(&curr_deriv[0])];
-                    new_layers.push(Layer::Full(full_layer))
                 }
             }
         }
+    }
 
-        CNNGradient::from_cnn(&ConvNeuralNet::new(new_layers))
+    pub fn grad_descent_step(&mut self, step_size: f64) {
+        for i in 0..self.layers.len() {
+            match &mut self.layers[i] {
+                Layer::Conv(ref mut conv_layer) => conv_layer.update_params(step_size),
+                Layer::Pool(ref mut pool_layer) => pool_layer.update_params(step_size),
+                Layer::Full(ref mut full_layer) => full_layer.update_params(step_size),
+            }
+        }
+    }
+
+    pub fn grad_l2_norm_squared(&self) -> f64 {
+        let mut norm = 0.;
+
+        for i in 0..self.layers.len() {
+            match &self.layers[i] {
+                Layer::Conv(ref conv_layer) => norm = norm + conv_layer.grad_l2_norm_squared(),
+                Layer::Pool(ref pool_layer) => norm = norm + pool_layer.grad_l2_norm_squared(),
+                Layer::Full(ref full_layer) => norm = norm + full_layer.grad_l2_norm_squared(),
+            }
+        }
+
+        norm
+    }
+
+    /// Classifies input
+    pub fn classify(&mut self, input: &Vec<Matrix<f64>>) -> (usize, f64) {
+        let output = self.compute_final_layer(input);
+        let output_matrix = &output[0]; // FClayer is single matrix
+
+        let mut max_val = f64::NEG_INFINITY;
+        let mut max_idx = 0;
+
+        for i in 0..output_matrix.row_count() {
+            let val = output_matrix.get(i, 0);
+            if val > max_val {
+                max_val = val;
+                max_idx = i;
+            }
+        }
+
+        (max_idx, max_val)
+    }
+
+    pub fn sgd_batch_step(
+        &mut self,
+        batch: Vec<impl DataItem>,
+        learning_rate: f64,
+        loss_function: &LFI,
+    ) {
+        for item in batch {
+            self.populate_gradients(&vec![item.input()], item.correct_output(), loss_function);
+        }
+
+        self.grad_descent_step(learning_rate / self.grad_l2_norm_squared());
+    }
+
+    pub fn train_sgd(
+        &mut self,
+        training_data_set: DataSet<impl DataItem>,
+        learning_rate: f64,
+        loss_function: &LFI,
+        epochs: usize,
+        batch_size: usize,
+        verbose: bool,
+    ) {
+        for epoch in 0..epochs {
+            if verbose {
+                println!("Training on epoch {}...", epoch);
+            }
+
+            for batch in training_data_set.all_minibatches(batch_size) {
+                self.sgd_batch_step(batch, learning_rate, loss_function);
+            }
+        }
+
+        if verbose {
+            println!("Completed all epochs of training.");
+        }
+    }
+
+    /// The average cost over inputted testing data
+    pub fn cost(&mut self, testing_data_set: DataSet<impl DataItem>, loss_function: &LFI) -> f64 {
+        let mut average_cost = 0.0;
+
+        for item in testing_data_set.data_items.clone() {
+            let (x, y) = (item.input(), item.correct_output());
+            let a = self.compute_final_layer(&vec![x]);
+            average_cost += loss_function.loss(&a[0], &y);
+        }
+
+        average_cost / (testing_data_set.data_items.len() as f64)
+    }
+
+    /// The accuracy, as a percentage of inputted testing items classified correctly
+    pub fn accuracy(&mut self, testing_data_set: DataSet<impl DataItem>) -> f64 {
+        let mut num_correct = 0;
+
+        for item in testing_data_set.data_items.clone() {
+            let (guess, _) = self.classify(&vec![item.input()]);
+
+            if guess == item.label() {
+                num_correct += 1;
+            }
+        }
+
+        (num_correct as f64) / (testing_data_set.data_items.len() as f64)
+    }
+
+    /// Samples a few data items and prints to the screen the behavior
+    /// of the network
+    pub fn display_behavior(
+        &mut self,
+        testing_data_set: DataSet<impl DataItem>,
+        num_items: usize,
+        loss_function: &LFI,
+    ) {
+        println!(
+            "Displaying network performance on {} testing items",
+            num_items
+        );
+
+        for item in testing_data_set.random_sample(num_items) {
+            println!("---Training Label: {} ---", item.name());
+            println!("{:?}", item);
+            println!("Network output: {:?}", self.classify(&vec![item.input()]));
+        }
+
+        println!("--------------------");
+        println!(
+            "Final cost: {}",
+            self.cost(testing_data_set.clone(), loss_function)
+        );
+        println!(
+            "Classification accuracy: {}",
+            self.accuracy(testing_data_set)
+        );
+    }
+
+    /// gradient of LFI w/ respect to network
+    pub fn compute_gradient(
+        &mut self,
+        input: &Matrix<f64>,
+        target: Matrix<f64>,
+        loss_function: &LFI,
+    ) -> CNNGradient {
+        self.populate_gradients(&vec![input.clone()], target, loss_function);
+        CNNGradient::from_cnn(self)
     }
 }
 
@@ -816,10 +954,13 @@ mod conv_tests {
 
     use super::ConvLayer;
     use super::ConvNeuralNet;
+    use super::FullLayer;
     use super::Layer;
     use super::PoolLayer;
     use super::PoolType;
     use crate::math::activation::AFI;
+    use crate::math::loss::LFI;
+    use crate::utility::mnist::mnist_utility::load_mnist;
     use matrix_kit::dynamic::matrix::Matrix;
 
     #[test]
@@ -928,16 +1069,51 @@ mod conv_tests {
 
         let cl = ConvLayer::new(filters, biases, AFI::ReLu, 1, 1);
         let pl = PoolLayer::new(PoolType::MAX, 2, 2, 2);
+        let fl = FullLayer::new(
+            Matrix::new(1, 8).applying_to_all(&|x: f64| x + 1.),
+            Matrix::new(1, 1).applying_to_all(&|x: f64| x + 1.),
+            AFI::ReLu,
+        );
 
-        let conv = ConvNeuralNet::new(vec![Layer::Conv(cl), Layer::Pool(pl)]);
-        let output = conv.compute_final_layer(&x[0]);
-        println!("Output: {:?}", output);
+        let mut conv = ConvNeuralNet::new(vec![Layer::Conv(cl), Layer::Pool(pl), Layer::Full(fl)]);
+        let output = conv.compute_final_layer(&x);
+        println!("Output: {:?}", output[0]);
+        println!(
+            "NN layer input: {:?}",
+            match conv.layers[2] {
+                Layer::Full(ref full_layer) => full_layer.input.clone(),
+                _ => Matrix::new(1, 1),
+            }
+        );
+
+        conv.populate_gradients(&x, Matrix::from_flatmap(1, 1, vec![375.]), &LFI::Squared);
+        println!(
+            "NN layer derivatives: {:?}",
+            match conv.layers[0] {
+                Layer::Conv(ref conv_layer) => conv_layer.d_filters[0][0][0].clone(),
+                _ => Matrix::new(1, 1),
+            }
+        );
 
         let d_output = vec![
             Matrix::from_flatmap(2, 2, vec![1., 1., 1., 1.]),
             Matrix::from_flatmap(2, 2, vec![2., 1., 1., 1.]),
         ];
-        // let d_inputs = conv.get_layers()[0].backprop(&d_output);
+    }
+
+    fn test_performance() {
+        let relative_path: &'static str = "../../data_sets";
+        let dataset = load_mnist(relative_path, "train");
+        let testing_ds = load_mnist(relative_path, "t10k");
+
+        let mut conv = ConvNeuralNet::new(vec![
+            Layer::Conv(ConvLayer::rand(4, 5, 5, 1, AFI::ReLu, 1, 0)),
+            Layer::Pool(PoolLayer::new(PoolType::MAX, 2, 2, 2)),
+            Layer::Conv(ConvLayer::rand(2, 5, 5, 4, AFI::ReLu, 1, 0)),
+            Layer::Pool(PoolLayer::new(PoolType::MAX, 2, 2, 2)),
+            Layer::Full(FullLayer::rand(32, 16, AFI::ReLu)),
+            Layer::Full(FullLayer::rand(16, 10, AFI::ReLu)),
+        ]);
     }
 
     fn print_mat_list(mats: &Vec<Matrix<f64>>) {

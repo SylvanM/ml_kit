@@ -518,7 +518,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
         let original_length = gradient.norm();
 
-        //gus.next_gradient(&mut gradient);
+        gus.next_gradient(&mut gradient);
 
         *cnn -= gradient;
 
