@@ -1,7 +1,6 @@
 //!
 //! Stochastic Gradient Descent Trainer for Neural Networks
 //!
-
 use std::ops::{AddAssign, SubAssign};
 
 use matrix_kit::dynamic::matrix::Matrix;
@@ -12,7 +11,7 @@ use crate::{math::activation::AFI, models::neuralnet::NeuralNet};
 use super::dataset::{DataItem, DataSet};
 use super::learning_rate::GradientUpdateSchedule;
 
-use crate::models::convneuralnet::{ConvNeuralNet, Layer, CNNGradient};
+use crate::models::convneuralnet::{ConvLayer, ConvNeuralNet, FullLayer, Layer, PoolLayer};
 
 /// An SGD trainer that trains a neural network
 pub struct SGDTrainer<DI: DataItem> {
@@ -33,7 +32,7 @@ pub struct NNGradient {
 }
 
 /// A Gradient representation for CNNs
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct CNNGradient {
     pub derivatives: Vec<Layer>,
 }
@@ -50,7 +49,7 @@ impl SubAssign<NNGradient> for NeuralNet {
 impl SubAssign<CNNGradient> for ConvNeuralNet {
     fn sub_assign(&mut self, rhs: CNNGradient) {
         for (layer_index, layer) in self.layers.iter_mut().enumerate() {
-            match (layer, &rhs.derivatives[layer_idx]) {
+            match (layer, &rhs.derivatives[layer_index]) {
                 (Layer::Conv(conv), Layer::Conv(grad)) => {
                     // Conv Layers
                     for (filter_index, filter) in conv.filters.iter_mut().enumerate() {
@@ -217,7 +216,7 @@ impl NNGradient {
 impl CNNGradient {
     pub fn from_cnn_shape(cnn: &ConvNeuralNet) -> CNNGradient {
         let mut derivatives = Vec::new();
-        
+
         for layer in &cnn.layers {
             match layer {
                 Layer::Conv(conv) => {
@@ -239,7 +238,7 @@ impl CNNGradient {
                     )));
                 }
                 Layer::Pool(pool) => {
-                    // Pool layers -> no params 
+                    // Pool layers -> no params
                     derivatives.push(Layer::Pool(PoolLayer::new(
                         pool.pool_type.clone(),
                         pool.w_rows,
@@ -257,17 +256,54 @@ impl CNNGradient {
                 }
             }
         }
-        
+
+        CNNGradient { derivatives }
+    }
+
+    pub fn from_cnn(cnn: &ConvNeuralNet) -> CNNGradient {
+        let mut derivatives = Vec::new();
+
+        for layer in &cnn.layers {
+            match layer {
+                Layer::Conv(conv) => {
+                    derivatives.push(Layer::Conv(ConvLayer::new(
+                        conv.d_filters[0].clone(),
+                        conv.d_biases[0].clone(),
+                        conv.act_func.clone(),
+                        conv.stride,
+                        conv.padding,
+                    )));
+                }
+                Layer::Pool(pool) => {
+                    // Pool layers -> no params
+                    derivatives.push(Layer::Pool(PoolLayer::new(
+                        pool.pool_type.clone(),
+                        pool.w_rows,
+                        pool.w_cols,
+                        pool.stride,
+                    )));
+                }
+                Layer::Full(full) => {
+                    // Fc Layer -> zero gradients
+                    derivatives.push(Layer::Full(FullLayer::new(
+                        full.d_weights[0].clone(),
+                        full.d_biases[0].clone(),
+                        full.act_func.clone(),
+                    )));
+                }
+            }
+        }
+
         CNNGradient { derivatives }
     }
 
     pub fn norm(&self) -> f64 {
         let mut norm_squared = 0.0;
-        
+
         for layer in &self.derivatives {
             match layer {
                 Layer::Conv(conv) => {
-                    // sum^2 norms 
+                    // sum^2 norms
                     for filter in &conv.filters {
                         for depth in filter {
                             norm_squared += depth.l2_norm_squared();
@@ -279,10 +315,10 @@ impl CNNGradient {
                     norm_squared += full.weights.l2_norm_squared();
                     norm_squared += full.biases.l2_norm_squared();
                 }
-                _ => {} 
+                _ => {}
             }
         }
-        
+
         norm_squared.sqrt()
     }
 
@@ -291,7 +327,7 @@ impl CNNGradient {
         if norm == 0.0 {
             return;
         }
-        
+
         for layer in &mut self.derivatives {
             match layer {
                 // Conv Layer
@@ -461,8 +497,12 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
     /// TODO: integrate w/ backprop.
     pub fn compute_cnn_gradient(&self, training_item: DI, cnn: &ConvNeuralNet) -> CNNGradient {
+        cnn.clone().compute_gradient(
+            &training_item.input(),
+            training_item.correct_output(),
+            &self.loss_function,
+        )
     }
-             
 
     /// Performs a step of SGD on a mini-batch of data for a CNN
     pub fn sgd_cnn_batch_step<GUS: GradientUpdateSchedule>(
@@ -479,7 +519,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
         let original_length = gradient.norm();
 
-        gus.next_gradient(&mut gradient);
+        // gus.next_gradient(&mut gradient);
 
         *cnn -= gradient;
 

@@ -1,7 +1,6 @@
 //!
 //! A collection of functions for learning rate schedules
 //!
-
 use std::usize;
 
 use matrix_kit::dynamic::matrix::Matrix;

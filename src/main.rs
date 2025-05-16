@@ -6,18 +6,18 @@ use ml_kit::math::activation::AFI;
 use ml_kit::math::svd::{self, svd};
 use ml_kit::models::neuralnet::NeuralNet;
 //use ml_kit::training::learning_rate::FixedLR;
-use ml_kit::training::learning_rate::AdaGrad;
-use ml_kit::{
-    math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist,
-};
+// use ml_kit::training::learning_rate::AdaGrad;
+// use ml_kit::{
+//     math::loss::LFI, training::sgd::SGDTrainer, utility::mnist::mnist_utility::load_mnist,
+// };
 
 fn main() {
     let relative_path: &'static str = "../data_sets";
 
-    let dataset = load_mnist(relative_path, "train");
-    let testing_ds = load_mnist(relative_path, "t10k");
-    let trainer: SGDTrainer<ml_kit::utility::mnist::mnist_utility::MNISTImage> =
-        SGDTrainer::new(dataset, testing_ds, LFI::Squared);
+    // let dataset = load_mnist(relative_path, "train");
+    // let testing_ds = load_mnist(relative_path, "t10k");
+    // let trainer: SGDTrainer<ml_kit::utility::mnist::mnist_utility::MNISTImage> =
+    //     SGDTrainer::new(dataset, testing_ds, LFI::Squared);
 
     // let mut neuralnet = NeuralNet::random_network(
     //     vec![784, 16, 16, 10],
@@ -54,25 +54,28 @@ fn main() {
     //     Matrix::random_normal(3, 4, 0.0, 1.0)
     // ).collect();
 
-    println!("Image is [{} x {}]", channels[0].row_count(), channels[0].col_count());
+    println!(
+        "Image is [{} x {}]",
+        channels[0].row_count(),
+        channels[0].col_count()
+    );
 
-    let image_svd_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = channels.iter().map(|channel|
-        svd(channel)
-    ).collect();
+    let image_svd_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> =
+        channels.iter().map(|channel| svd(channel)).collect();
 
     for i in 0..4 {
         let (u, v, s) = image_svd_rgba[i].clone();
 
         // We are going to write this as a neural network, because we already have code that can store it!
 
-        let network = NeuralNet::new(vec![
-            v.transpose(), s.clone(), u.clone()], 
+        let network = NeuralNet::new(
+            vec![v.transpose(), s.clone(), u.clone()],
             vec![
                 Matrix::new(v.col_count(), 1),
                 Matrix::new(s.row_count(), 1),
                 Matrix::new(u.row_count(), 1),
-            ], 
-            vec![AFI::Identity ; 3]
+            ],
+            vec![AFI::Identity; 3],
         );
 
         // Write this down!
@@ -86,7 +89,4 @@ fn main() {
     }
 
     // Can we recover?
-
-    
-
 }
