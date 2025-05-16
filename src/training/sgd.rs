@@ -511,6 +511,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
         cnn: &mut ConvNeuralNet,
         gus: &mut GUS,
     ) -> f64 {
+        // First, compute sum of gradients for all training items in the batch
         let mut gradient = CNNGradient::from_cnn_shape(cnn);
 
         for item in batch {
@@ -519,7 +520,9 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
         let original_length = gradient.norm();
 
-        // gus.next_gradient(&mut gradient);
+        // Apply the gradient update schedule (learning rate, momentum, etc.)
+        // This is crucial for proper training as it scales the gradients appropriately
+        gus.next_gradient(&mut gradient);
 
         *cnn -= gradient;
 
