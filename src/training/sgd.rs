@@ -446,7 +446,6 @@ impl<DI: DataItem> SGDTrainer<DI> {
         neuralnet: &mut NeuralNet,
         gus: &mut GUS,
     ) -> f64 {
-        // First, compute sum of gradients for all training items in the batch.
         let mut gradient = NNGradient::from_nn_shape(neuralnet.clone());
 
         for item in batch {
@@ -495,7 +494,6 @@ impl<DI: DataItem> SGDTrainer<DI> {
         }
     }
 
-    /// TODO: integrate w/ backprop.
     pub fn compute_cnn_gradient(&self, training_item: DI, cnn: &ConvNeuralNet) -> CNNGradient {
         cnn.clone().compute_gradient(
             &training_item.input(),
@@ -520,9 +518,7 @@ impl<DI: DataItem> SGDTrainer<DI> {
 
         let original_length = gradient.norm();
 
-        // Apply the gradient update schedule (learning rate, momentum, etc.)
-        // This is crucial for proper training as it scales the gradients appropriately
-        gus.next_gradient(&mut gradient);
+        //gus.next_gradient(&mut gradient);
 
         *cnn -= gradient;
 
