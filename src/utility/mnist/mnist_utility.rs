@@ -4,10 +4,9 @@ use std::{fmt::Debug, fs::File, io::prelude::*};
 
 use crate::training::dataset::{DataItem, DataSet};
 
-
 #[derive(Clone)]
 pub struct MNISTImage {
-    /// A 28x28 grayscale image of a handwritten digit. The [0,0] entry is 
+    /// A 28x28 grayscale image of a handwritten digit. The [0,0] entry is
     /// the top-left corner of the image.
     image_matrix: Matrix<f64>,
 
@@ -39,18 +38,17 @@ impl Debug for MNISTImage {
 }
 
 impl DataItem for MNISTImage {
-
     fn input(&self) -> Matrix<f64> {
-        // We store the image in a flat vector, column-wise. So, the vector 
-        // is 784-dimensional, with the first 28 entries being the first 
+        // We store the image in a flat vector, column-wise. So, the vector
+        // is 784-dimensional, with the first 28 entries being the first
         // column of the image.
 
         Matrix::from_flatmap(784, 1, self.image_matrix.as_vec())
     }
 
     fn correct_output(&self) -> Matrix<f64> {
-        // Returns a 1-hot encoding of the correct digit. This is a vector 
-        // with 10 entries, with index i being 1 iff this represents the image 
+        // Returns a 1-hot encoding of the correct digit. This is a vector
+        // with 10 entries, with index i being 1 iff this represents the image
         // of the digit i.
 
         let mut one_hot: Matrix<f64> = Matrix::new(10, 1);
@@ -62,11 +60,10 @@ impl DataItem for MNISTImage {
     fn name(&self) -> String {
         self.correct_digit.to_string()
     }
-    
+
     fn label(&self) -> usize {
         self.correct_digit
     }
-
 }
 
 pub fn load_mnist(relative_path: &str, prefix: &str) -> DataSet<MNISTImage> {

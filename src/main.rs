@@ -4,7 +4,11 @@ use image::imageops::FilterType::Nearest;
 use matrix_kit::dynamic::matrix::Matrix;
 use ml_kit::math::activation::AFI;
 use ml_kit::math::svd::{self, svd};
+use ml_kit::models::convneuralnet::{
+    ConvLayer, ConvNeuralNet, FullLayer, Layer, PoolLayer, PoolType,
+};
 use ml_kit::models::neuralnet::NeuralNet;
+use ml_kit::training::dataset::{DataItem, DataSet};
 //use ml_kit::training::learning_rate::FixedLR;
 use ml_kit::training::learning_rate::AdaGrad;
 use ml_kit::{

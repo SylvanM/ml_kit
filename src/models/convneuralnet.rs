@@ -370,19 +370,17 @@ impl ConvLayer {
             for i in 0..d_input_subs[l].len() {
                 let r_start = i / self.output_cols * self.stride;
                 let c_start = (i % self.output_cols) * self.stride;
-                let mut new_mat = Matrix::new(grad.row_count(), grad.col_count());
-                new_mat.set_submatrix(
-                    Range {
-                        start: r_start,
-                        end: r_start + f_rows,
-                    },
-                    Range {
-                        start: c_start,
-                        end: c_start + f_cols,
-                    },
-                    Matrix::from_flatmap(f_cols, f_rows, d_input_subs[l][i].as_vec()).transpose(),
-                );
-                grad = grad + new_mat;
+                let sub =
+                    Matrix::from_flatmap(f_cols, f_rows, d_input_subs[l][i].as_vec()).transpose();
+                for r in 0..f_rows {
+                    for c in 0..f_cols {
+                        grad.set(
+                            r + r_start,
+                            c + c_start,
+                            grad.get(r + r_start, c + c_start) + sub.get(r, c),
+                        );
+                    }
+                }
             }
             d_input.push(grad.get_submatrix(
                 Range {
@@ -517,7 +515,6 @@ impl PoolLayer {
             let mut grad: Matrix<f64> = Matrix::new(input_rows, input_cols);
             for r in 0..d_output[l].row_count() {
                 for c in 0..d_output[l].col_count() {
-                    let mut new_mat = Matrix::new(input_rows, input_cols);
                     let row_range = Range {
                         start: r * self.stride,
                         end: r * self.stride + self.w_rows,
@@ -554,8 +551,16 @@ impl PoolLayer {
                         }),
                         PoolType::SUM => sub_mat.apply_to_all(&|_| d_output[l].get(r, c)),
                     }
-                    new_mat.set_submatrix(row_range, col_range, sub_mat);
-                    grad = grad + new_mat;
+                    for r in 0..self.w_rows {
+                        for c in 0..self.w_cols {
+                            grad.set(
+                                r + row_range.start,
+                                c + col_range.start,
+                                grad.get(r + row_range.start, c + col_range.start)
+                                    + sub_mat.get(r, c),
+                            );
+                        }
+                    }
                 }
             }
 
@@ -646,7 +651,7 @@ impl FullLayer {
             d_output.set(
                 r,
                 0,
-                self.act_func.derivative(self.output.get(r, 0)) * deriv,
+                self.act_func.derivative(self.pre_act_output.get(r, 0)) * deriv,
             );
         }
 
@@ -663,7 +668,6 @@ impl FullLayer {
         }
         self.d_weights.push(d_weights);
 
-        // Input derivatives
         self.weights.clone().transpose() * d_output
     }
 
@@ -672,7 +676,7 @@ impl FullLayer {
             self.biases =
                 self.biases.clone() - self.d_biases[n].applying_to_all(&|x| x * step_size);
             self.weights =
-                self.biases.clone() - self.d_weights[n].applying_to_all(&|x| x * step_size);
+                self.weights.clone() - self.d_weights[n].applying_to_all(&|x| x * step_size);
         }
 
         self.d_weights = Vec::new();
@@ -741,11 +745,11 @@ impl ConvNeuralNet {
         let mut curr_deriv = vec![loss_function.derivative(&prediction[0], &target)];
 
         for i in (0..self.layers.len()).rev() {
-            print!("Grad List:");
-            for i in 0..curr_deriv.len() {
-                print!("{:?}", curr_deriv[i])
-            }
-            print!("\n\n");
+            // print!("Grad List:");
+            // for i in 0..curr_deriv.len() {
+            //     print!("{:?}", curr_deriv[i])
+            // }
+            // print!("\n\n");
             match &mut self.layers[i] {
                 Layer::Conv(ref mut conv_layer) => {
                     if curr_deriv[0].col_count() < conv_layer.output_cols {
@@ -868,7 +872,7 @@ impl ConvNeuralNet {
                 println!("Training on epoch {}...", epoch);
             }
 
-            for batch in training_data_set.all_minibatches(batch_size) {
+            for (i, batch) in training_data_set.all_minibatches(batch_size).enumerate() {
                 self.sgd_batch_step(batch, learning_rate, loss_function);
             }
         }
@@ -1101,8 +1105,9 @@ mod conv_tests {
         ];
     }
 
+    #[test]
     fn test_performance() {
-        let relative_path: &'static str = "../../data_sets";
+        let relative_path: &'static str = "data_sets";
         let dataset = load_mnist(relative_path, "train");
         let testing_ds = load_mnist(relative_path, "t10k");
 
@@ -1114,6 +1119,10 @@ mod conv_tests {
             Layer::Full(FullLayer::rand(32, 16, AFI::ReLu)),
             Layer::Full(FullLayer::rand(16, 10, AFI::ReLu)),
         ]);
+
+        // conv.train_sgd(dataset, 0.1, &LFI::Squared, 100, 10, true);
+
+        conv.display_behavior(testing_ds, 5, &LFI::Squared);
     }
 
     fn print_mat_list(mats: &Vec<Matrix<f64>>) {
