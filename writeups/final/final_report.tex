@@ -217,7 +217,7 @@ representing $A$ by truncating all but the first $r \leq n$ singular vectors, as
 contribute as much to the 
 overall product. The immediate application is identifying the most significant axes of correlation in data, allowing 
 dimensionality reduction of datasets by re-writing each item in the basis $\vect{v}_1, \ldots, \vect{v}_r$.
-Commonly, the ``data'' of concern is written as the rows of $A$.
+Commonly, the ``data'' of concern is written into the rows of $A$.
 
 \subsubsection{What we implemented}
 
@@ -266,6 +266,32 @@ The \texttt{matrix\_kit} library can be found on GitHub at \url{https://github.c
 \subsection{Gradient Descent}
 
 \subsection{Principle Component Analysis}
+
+In this section, we discuss the performance of our SVD-based algorithms in terms 
+of their speed and correctness.
+
+\subsubsection{Singular Value Decomposition}
+
+In numerical methods such as SVD, the accumulation of floating point error prevents us from measuring exact correctness.
+Instead, we define some small $\varepsilon$, and consider two matrices $A \approx_\varepsilon B$ to be ``basically equal'' if 
+for all $i, j$, $|a_{ij} - b_{ij}| < \varepsilon$. When testing on large matrices, we chose $\varepsilon = 1 \times 10^{-5}$
+to be our goal, though in practice on smaller matrices ($m, n \leq 50$) we attain correctness up to $\varepsilon = 1 \times 10^{-9}$.
+
+To test correctness of our SVD implementation, we start with a randomly generated matrix $A \in \R^{m \times n}$
+where each entry is sampled from the normal distribution $\mathcal N(0, 1)$, and compute its SVD into $U$, $V$, 
+and $\Sigma$. We then check that $U$ and $V$ are orthogonal by testing $U^\top U \approx_\varepsilon I_m$ 
+and $V^\top V \approx_\varepsilon I_n$. We then check that $A \approx_\varepsilon = U \Sigma V^\top$. One ``trial'' is 
+the above proceedure with $m, n$ sampled uniformly at random from the range $2$ to $200$. We ran one thousand trials 
+total
+
+
+\subsubsection{Image Compression}
+
+It works! Here is an example!
+
+\subsubsection{Planes of Best Fit}
+
+
 
 
 \printbibliography

@@ -142,11 +142,10 @@ mod test_image_util {
             }  
         ).collect();
 
-        println!("Singular values for Sheep Picture...");
-        println!("RED:  \t{:?}", recovered_rgba[0].2.get_diagonal());
-        println!("GREEN:\t{:?}", recovered_rgba[1].2.get_diagonal());
-        println!("BLUE: \t{:?}", recovered_rgba[2].2.get_diagonal());
-        println!("ALPHA:\t{:?}", recovered_rgba[3].2.get_diagonal());
+        let m = recovered_rgba[0].2.row_count();
+        let n = recovered_rgba[0].2.col_count();
+
+        println!("Sheep picture is [{} x {}]", m, n);
 
         for r in compressed_sizes {
             let truncated_rgba = recovered_rgba.iter().map(|(u, v, s)| {
@@ -155,9 +154,16 @@ mod test_image_util {
                 }
             ).collect();
 
+            let original_entries_count = (m * n) as f64;
+            let compressed_svd_count = (m * r + r * r + n * r) as f64;
+            let compression_ratio = compressed_svd_count / original_entries_count;
+            println!("For r={}, compression ratio is {}", r, compression_ratio);
+
             let path = format!("testing/files/compressed_sheep_{}.png", r);
             write_rgba_matrices(truncated_rgba, &path);
         }
+
+        // 
     }
 
 }

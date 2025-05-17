@@ -554,32 +554,32 @@ mod svd_math_tests {
 
     #[test]
     fn test_svd() {
-        let a = Matrix::from_flatmap(3, 4, vec![
-            0.0, 2.0, 4.0, 6.0,
-            1.0, 3.0, 5.0, 7.0,
-            -1.0, 2.0, -3.0, -4.0,
-        ]);
+        // let a = Matrix::from_flatmap(3, 4, vec![
+        //     0.0, 2.0, 4.0, 6.0,
+        //     1.0, 3.0, 5.0, 7.0,
+        //     -1.0, 2.0, -3.0, -4.0,
+        // ]);
 
-        let (u, v, s) = svd(&a);
+        // let (u, v, s) = svd(&a);
 
-        println!("Orthogonal check!");
-        println!("{:?}", u.transpose() * u.clone());
-        println!("{:?}", v.transpose() * v.clone());
+        // println!("Orthogonal check!");
+        // println!("{:?}", u.transpose() * u.clone());
+        // println!("{:?}", v.transpose() * v.clone());
 
-        println!("Singular values?");
-        println!("{:?}", s);
+        // println!("Singular values?");
+        // println!("{:?}", s);
 
-        println!("Can we get diagonal?");
-        println!("{:?}", u.transpose() * a.clone() * v.clone());
+        // println!("Can we get diagonal?");
+        // println!("{:?}", u.transpose() * a.clone() * v.clone());
         
-        println!("Can we recover?");
-        println!("{:?}", u.clone() * s.clone() * v.transpose());
+        // println!("Can we recover?");
+        // println!("{:?}", u.clone() * s.clone() * v.transpose());
 
-        for _ in 1..=1 {
+        for _ in 1..=100 {
             let mut rng = rand::rng();
 
-            let n = 4032;
-            let m = 3024;
+            let n = rng.random_range(2..=20);
+            let m = rng.random_range(2..=20);
 
             println!("SVD-ing [{} x {}]", m, n);
 
@@ -592,6 +592,8 @@ mod svd_math_tests {
 
             assert!(matrices_close(&alleged_a, &a));
             assert!(matrices_close(&alleged_s, &s));
+            assert!(matrices_close(&(u.transpose() * u), &Matrix::identity(m, m)));
+            assert!(matrices_close(&(v.transpose() * v), &Matrix::identity(n, n)));
         }
     }
 

@@ -38,9 +38,32 @@ pub fn plane_of_best_fit(
     (basis, mean)
 }
 
-/// With a $k$-dimensional plane of best fit, this predicts the missing 
-/// component of a $k-1$ dimensional vector which comes from the 
-/// distribution described by the plane of best fit.
-pub fn predict(plane: (Matrix<f64>, Matrix<f64>), witness: Matrix<f64>) {
-    
+#[cfg(test)]
+mod stats_tests {
+    use matrix_kit::dynamic::matrix::Matrix;
+
+    use super::plane_of_best_fit;
+
+
+    #[test]
+    fn test_simple_line() {
+
+        let data = Matrix::from_flatmap(2, 7, vec![
+            7.0, 15.0,
+            3.0, 12.0,
+            9.0, 12.0,
+            10.0, 13.0,
+            1.0, 11.0,
+            9.0, 14.0,
+            5.0, 13.0,
+        ]);
+
+        let (line, mean) = plane_of_best_fit(data, 1);
+
+        println!("Line spanned by {:?}\nwith mean {:?}", line, mean);
+
+        println!("Slope is {:?}", line.get(1, 0) / line.get(0, 0));
+
+    }
+
 }
