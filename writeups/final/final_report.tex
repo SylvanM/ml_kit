@@ -284,7 +284,7 @@ to be our goal, though in practice on smaller matrices ($m, n \leq 50$) we attai
 To test correctness of our SVD implementation, we start with a randomly generated matrix $A \in \R^{m \times n}$
 where each entry is sampled from the normal distribution $\mathcal N(0, 1)$, and compute its SVD into $U$, $V$, 
 and $\Sigma$. We then check that $U$ and $V$ are orthogonal by testing $U^\top U \approx_\varepsilon I_m$ 
-and $V^\top V \approx_\varepsilon I_n$. We then check that $A \approx_\varepsilon = U \Sigma V^\top$. 
+and $V^\top V \approx_\varepsilon I_n$. We then check that $A \approx_\varepsilon U \Sigma V^\top$. 
 
 Sometimes, our SVD implemention does not converge on a particular matrix, and so we abort the execution. The main loop 
 of the Golub-Kahan algorithm should in theory take $\mathcal O(n)$ steps, so we introduced a check that if the main loop
@@ -324,7 +324,47 @@ project would be to get this running faster!
 
 \subsubsection{Image Compression}
 
-It works! Here is an example!
+As discussed above, we were unable to run our image compression on large images, so we started with low-resolution 
+images. We ran our image compression algorithm on two images, one of some sheep,\ftntmk{}\footnotetext{The 
+sheep are in the teaching barn by the Vet School. I highly recommend that you go visit and pet them! It's 
+free and you can just walk right up to them!}, and one 
+of a cat. 
+
+When a matrix $A$ is decomposed into $U, \Sigma, V$, and all but the first $k$ singular values are ditched, we are 
+left with three matrices of sizes $m \times k$, $k$ and $n \times k$ (we need only store the diagonal of $\Sigma$).
+So, the number of floating point values we must store as a fraction of the amount we would need to fully represent 
+$A$ is what we call the ``compression ratio,'' computed as 
+\[
+    r = \frac{r + rm + rn}{mn}
+\]
+For small matrices and large values of $r$, this doesn't save much. However, this scales incredibly well for large matrices, 
+as we can pick modestly small values of $r$ and end up with impressive compression ratios while still being able to recognize 
+the original image. A small caveat here is that typically a single pixel's channel for one color only uses one byte to 
+represent it, whereas we are using 64-bit floating points, so one could argue that we need to include a factor of 8 
+in our compression ratio. However, our compression would work just as well if each color channel was represented 
+as a floating point value between 0 and 1 (since this is what we convert the image to anyway when we begin 
+compression), so we think it is fair to compare the sizes when thinking of the original channel as being a 
+decimal between 0 and 1 as opposed to an integer between 0 and 255.
+
+\begin{center}
+    \textbf{Sheep}
+\end{center}
+
+We used a $240 \times 320$ pixel image of some sheep laying in a barn, and truncated the singular values
+up to the first $k \in \{100, 50, 10\}$. Running SVD to decompose the image took \textbf{1m 15s}.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics{images/sheep.png}
+	\caption{The original image}
+	\label{fig:sheep}
+\end{figure}
+
+\begin{center}
+    \textbf{Panini (the cat)}
+\end{center}
+
+On a $640 \times 480$ image of Panini, SVD took \textbf{20m 50s} to finish, 
 
 \subsubsection{Planes of Best Fit}
 

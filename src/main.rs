@@ -13,8 +13,44 @@ use ml_kit::{
 use rand::Rng;
 
 fn main() {
-    test_svd();
+    factor_image();
 }
+
+
+    fn factor_image() {
+        let channels = ml_kit::images::util::read_rgba_matrices("testing/files/cat.png");
+
+        println!("Image is [{} x {}]", channels[0].row_count(), channels[0].col_count());
+
+        let image_svd_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = channels.iter().map(|channel|
+            svd(channel)
+        ).collect();
+
+        for i in 0..4 {
+            let (u, v, s) = image_svd_rgba[i].clone();
+
+            // We are going to write this as a neural network, because we already have code that can store it!
+
+            let network = NeuralNet::new(vec![
+                v.transpose(), s.clone(), u.clone()], 
+                vec![
+                    Matrix::new(v.col_count(), 1),
+                    Matrix::new(s.row_count(), 1),
+                    Matrix::new(u.row_count(), 1),
+                ], 
+                vec![AFI::Identity ; 3]
+            );
+
+            // Write this down!
+            let path = format!("testing/files/rgba_cat_{}.mlk_nn", i);
+            let mut file = match File::create(path) {
+                Ok(f) => f,
+                Err(e) => panic!("Error opening file: {:?}", e),
+            };
+
+            network.write_to_file(&mut file);
+        }
+    }
 
 fn matrices_close(a: &Matrix<f64>, b: &Matrix<f64>) -> bool {
         if a.row_count() != b.row_count() || a.col_count() != b.col_count() {

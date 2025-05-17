@@ -126,9 +126,9 @@ mod test_image_util {
 
     #[test]
     fn test_compression() {
-        let compressed_sizes = vec![240, 200, 150, 100, 10];
+        let compressed_sizes = vec![240, 200, 150, 100, 70, 50, 10, 7, 5];
         let recovered_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = (0..4).map(|i| {
-                let path = format!("testing/files/rgba_sheep_{}.mlk_nn", i);
+                let path = format!("testing/files/rgba_cat_{}.mlk_nn", i);
                 let mut file = match File::open(path) {
                     Ok(f) => f,
                     Err(e) => panic!("Error writing file: {:?}", e),
@@ -145,7 +145,7 @@ mod test_image_util {
         let m = recovered_rgba[0].2.row_count();
         let n = recovered_rgba[0].2.col_count();
 
-        println!("Sheep picture is [{} x {}]", m, n);
+        println!("Cat picture is [{} x {}]", m, n);
 
         for r in compressed_sizes {
             let truncated_rgba = recovered_rgba.iter().map(|(u, v, s)| {
@@ -155,11 +155,11 @@ mod test_image_util {
             ).collect();
 
             let original_entries_count = (m * n) as f64;
-            let compressed_svd_count = (m * r + r * r + n * r) as f64;
+            let compressed_svd_count = (m * r + r + n * r) as f64;
             let compression_ratio = compressed_svd_count / original_entries_count;
             println!("For r={}, compression ratio is {}", r, compression_ratio);
 
-            let path = format!("testing/files/compressed_sheep_{}.png", r);
+            let path = format!("testing/files/compressed_cat_{}.png", r);
             write_rgba_matrices(truncated_rgba, &path);
         }
 
