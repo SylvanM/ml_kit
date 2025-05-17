@@ -60,3 +60,53 @@ This process is repeated for each batch in the training set, yielding an epoch.
 Many epochs are usually required to train a network to achieve reasonable classification accuracies.
 
 \subsubsection{What we implemented}
+
+
+
+\begin{center}
+ \textbf{NN Implementation:}
+\end{center}
+
+The NeuralNetwork implementation within ML_kit is straightforward and exncapsulates everything needed to build, inspect, and run a feed-forward network.
+Initially, a NeuralNet holds three parallel vectors: 
+
+1. Weight Matrices $Vec<Matrix<f64>>$, each matrix represents the weight between two layers. 
+2. Bias Vectors, one per non-input layer. Each is stored in a column sized vector of size $m * 1$ where m is the number of neurons in said layer. 
+pre-activation vector prior to applying the activation function. 
+3. Activation Functions, a vector of activations indicate which activation is to be used upon each layer. Sigmoid, Relu, etc. 
+
+Our NeuralNet construction allows for two ways of instantiation. You can call NeuralNet::new(weights, biases, activations) 
+to instantiate a network of user provided parameters. Otherwise, for ease of testing, you can call NeuralNet::from_shape(shape, activations)
+to create a zero initialized network and fill with NeuralNet::random_network(shape, activations). 
+
+Once instantiated, our compute_final_layer(input) function incorporates the forward pass logic. Starting with a column vector, for each layer 
+$l$ we multiply with weight matrix $W_l$ and add bias $b_l$, and apply the element wise activation. The resulting column is then 
+carried into the next layer until we return the output vector. We also incorporate functions such as compute_raw_layers() and compute_raw_and_full_layers(). 
+
+We also implemented a paramter_count() method to tally all weights and biases. Furthermore, shape() reports the complete layer dimensions. 
+classify(input) runs a forward pass and returns the neuron with max output. We also incorporated file I/O functionality through the write_to_file 
+method. The function essentially encodes the number of layers, size, activations, etc.  
+
+
+\begin{center}
+ \textbf{CNN Implementation:}
+\end{center}
+
+Following the specifications above, the Convolutional Neural Network implementation within ML_kit implements a sequence of three kinds of layers. 
+We define a type enum Layer to consist of the convolutional, pooling, and fully connected layers. 
+
+We implement convolutional layers $ConvLayer$ that store a bank of multi-depth filters with a per filter bias. Furthermore, we included hyperparameters 
+such as stride and padding. Pooling Layers implementex max, avg, or sum pooling and include the forward propagation abd backprop functionality in the feedforward 
+and backprop methods respectively. We implement fully connected layeres $FullLayer$ as discussed above within the Fully Connected Neural Network section. 
+
+These layers are wrapped in our CNN datastructure $ConvNeuralNet$ which holds the subsequent methods. The compute_final_layaer() method sequentially calls the 
+feed_forward method of each respective layer, returning final activations. The populate_gradients() method does a forward pass to record activations, computes 
+each intial gradient, and backtracks via calling each layers back_prop function, reshaping when needed. Grad descent step calls each layers update_params() method. 
+sgd_batch_step() essentially does a forward and backward pass given the functions above and updates layers accordingly. train_sgd() loops over user defined epoch and applies 
+agd_batch_step(). 
+
+
+
+
+
+
