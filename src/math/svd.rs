@@ -358,7 +358,10 @@ fn tall_svd_factorization(matrix: &Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Ma
 
     let mut q = 0;
 
+    let mut i = 0;
+
     while q < n {
+        i += 1;
         // For numerical stability, zero out some stuff
         for i in 0..(n - 1) {
             if b.get(i, i + 1).abs() <= f64::EPSILON * (b.get(i, i).abs() + b.get(i + 1, i + 1).abs()) {
@@ -405,6 +408,10 @@ fn tall_svd_factorization(matrix: &Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Ma
                 golub_kahan_step(&mut b, &mut u, &mut v, q, p);
             }
         }
+
+        if i > 30 * matrix.col_count() {
+            return (Matrix::new(0, 0), Matrix::new(0, 0), Matrix::new(0, 0));
+        }   
     }
 
 
