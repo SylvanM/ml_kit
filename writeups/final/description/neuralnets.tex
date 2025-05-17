@@ -89,7 +89,7 @@ In particular, to perform SGD, a set of training examples is provided, along wit
 In each epoch, the whole set of training examples is sampled into different smaller sets specified by the batch size.
 The network parameters are then updated based on the loss incurred by each batch of training examples, rather than the entire training set.
 This greatly reduces the computational cost in each update step, while not changing the performance of the model in expectation.
-This is the only type of gradient descent we implemented.
+This is the primary type of gradient descent we implemented, although we do also have some support for AdaGrad.
 
 
 
