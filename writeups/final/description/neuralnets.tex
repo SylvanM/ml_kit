@@ -1,1 +1,62 @@
 \subsection{Neural Networks}
+Neural network based learning (i.e. deep learning) is a type of supervised learning that involves using black-box models which depend on a large number of tunable parameters to classify complicated inputs.
+The models are trained by iteratively evaluating their performance on training examples and updating their parameters accordingly, usually through gradient descent.
+We call these black-box models `networks' because they are generally conceptualized as a series of composed functions, or `layers', where each layer linearly maps some input vector (or, more generally, tensor) to a possibly differently-sized output vector, and then applies a simple element-wise non-linear `activation function'.
+This sequence of highly inter-connected linear functions interspersed with element-wise non-linearities enables the model to identify complex features only using parameters that have relatively simple and computable gradients, ensuring efficient training.
+
+\subsubsection{Fully-connected neural networks}
+The traditional neutral network (NN) is a series of fully-connected layers, meaning each input element of a layer has a parameter through which it can linearly affect each output element.
+In particular, the function associated with each layer is of the form \textcolor{blue}{\autocite{Nielsen_2015}}
+\begin{equation*}
+  \begin{aligned}
+    \vect{v}_{\text{out}} = f(\vect{v}_{\text{in}}) = \sigma\left(\mathbf{W}\vect{v}_{\text{in}} + \vect{b}\right) ~,
+  \end{aligned}
+\end{equation*}
+where $\mathbf{W}$ is a matrix of `weight' parameters, $\vect{b}$ is a vector of `bias' parameters, and $\sigma$ is the non-linear activiation function.
+The derivative of the output vector with respect to the input vector and these parameters can then be simply calculated as
+\begin{equation*}
+  \begin{aligned}
+    \frac{\partial v_{\text{out}, i}}{\partial W_{i, j}} = v_{\text{in}, j} \cdot \sigma'\left(\vect{x}\right)\hspace{3pt}, \hspace{30pt} \frac{\partial v_{\text{out}, i}}{\partial b_{i}} & = \sigma'\left(\vect{x}\right)\hspace{3pt},\text{ and} \hspace{23pt} \frac{\partial v_{\text{out}, i}}{\partial v_{\text{in}, j}} = W_{i, j} \cdot \sigma'\left(\vect{x}\right) ~,
+  \end{aligned}
+\end{equation*}
+where $\vect{x} = \mathbf{W}\vect{v}_{\text{in}} + \vect{b}$ and all unspecified derivatives are zero.
+Thus, the output of the entire neural-network model can be simply computed as the composition of each layer function, and the gradient of the loss with respect to the model parameters (to use for parameter updates) can be determined by iteratively applying the chain rule to the above derivatives.
+
+\subsubsection{Convolutional neural networks}
+Fully-connected neural networks are very general, but they do not take advantage of any potential structure of the input to minimize the number of required parameters or improve efficiency or performance.
+Enter, convolutional neural networks (CNNs).
+CNNs, primarily designed for image recognization and classification, use the spatial structure of an image to allow for shared weights and biases, reducing the number of required parameters.
+In particular, CNNs scan a series of filters across the image, each of which conceptually is intended to identify a certain local feature of the image (e.g. identify straight or curved lines).
+This scanning process is specifically done by convolving each filter with the image, hence the `convolutional' in CNN.
+As described in \textcolor{blue}{\autocite{Making_faster}}, this convolution step can be implemented efficiently via matrix multiplication by first reshaping the input matrices and filters.
+Although we do not give the explicit formulas here (see \textcolor{blue}{\autocite{Solai_2018}}), the derivatives of the output of a convolution layer with respect to the inputs and filters can also be computed via a convolution.
+
+CNNs often also contain pooling layers, which further reduce the dimensionality of the data.
+These layers scan a `window' along the input matrix, combining all the elements in each window into a single output element.
+This combination process can be done in a number of ways, including taking the maximum, average, or sum of the window elements, which are referred to as max pooling, average pooling, and sum pooling, respectively.
+These pooling layers do not have any parameters, and their outputs are simply related to the elements of each window, so the derivatives of this layer are straightforward to compute.
+
+A CNN usually involves a sequence of several of these convolution and pooling layers.
+However, once the dimensionality of the input data has been sufficiently reduced, the final classification is usually performed by a fully-connected neural network, which constitutues the last few layers of the CNN.
+As with the fully-connected NN, training proceeds by iteratively passing the training inputs through each layer to get the model output, and then moving back through the layers via the chain rule to compute the loss gradient.
+
+\subsubsection{Stochastic gradient descent}
+The training of these neural networks is often powered by stochastic gradient descent (SGD).
+SGD is a scheme for updating the paraemters of a network using the gradient of the loss for small sampled batches of training examples.
+In particular, to perform SGD, a set of training examples is provided, along with a specification of batch size and number of epochs.
+In each epoch, the whole set of training examples is sampled into different smaller sets specified by the batch size.
+The network parameters are then updated based on the loss incurred by each batch of training examples, rather than the entire training set.
+This greatly reduces the computational cost in each update step, while not changing the performance of the model in expectation.
+Each batch step specifically involves iterating through each training example in the batch.
+Each training input is passed forward through the layers of the network to compute the output and loss, which is then passed back through the layers to compute the the derivative of the loss with respect to each parameter via the chain rule.
+These derivatives are summed for each example from the batch, the resulting gradient is normalized, and then each parameter $p$ is updated as according to
+\begin{equation*}
+  \begin{aligned}
+    p \mapsto p - \alpha\frac{\partial L}{\partial p} ~,
+  \end{aligned}
+\end{equation*}
+where $\frac{\partial L}{\partial p}$ is the normalized derivative of the loss $L$ with respect to parameter $p$ and $\alpha$ is the step size, or `learning rate'.
+This process is repeated for each batch in the training set, yielding an epoch.
+Many epochs are usually required to train a network to achieve reasonable classification accuracies.
+
+\subsubsection{What we implemented}
