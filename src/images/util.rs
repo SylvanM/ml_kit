@@ -128,7 +128,7 @@ mod test_image_util {
     fn test_compression() {
         let compressed_sizes = vec![240, 200, 150, 100, 70, 50, 10, 7, 5];
         let recovered_rgba: Vec<(Matrix<f64>, Matrix<f64>, Matrix<f64>)> = (0..4).map(|i| {
-                let path = format!("testing/files/rgba_cat_{}.mlk_nn", i);
+                let path = format!("testing/files/rgba_sheep_{}.mlk_nn", i);
                 let mut file = match File::open(path) {
                     Ok(f) => f,
                     Err(e) => panic!("Error writing file: {:?}", e),
@@ -159,7 +159,7 @@ mod test_image_util {
             let compression_ratio = compressed_svd_count / original_entries_count;
             println!("For r={}, compression ratio is {}", r, compression_ratio);
 
-            let path = format!("testing/files/compressed_cat_{}.png", r);
+            let path = format!("testing/files/compressed_sheep_{}.png", r);
             write_rgba_matrices(truncated_rgba, &path);
         }
 

@@ -21,6 +21,8 @@
 \usepackage{accents}
 \usepackage{mathtools}
 \usepackage{bbm}
+\usepackage{caption}
+\usepackage{float}
 
 \usepackage{import}
 
@@ -123,7 +125,6 @@
 \newcommand{\abs}[1]{\verts{#1}}
 \newcommand{\size}[1]{\verts{#1}}
 \newcommand{\norm}[1]{\Verts{#1}}
-
 \newcommand{\eps}{\varepsilon}
 \newcommand{\vphi}{\varphi}
 \renewcommand{\Re}{\mathrm{Re}}
@@ -144,6 +145,7 @@
 
 \pgfplotsset{compat=1.16}
 \begin{document}
+\captionsetup{labelformat=empty,labelsep=none}
 
 \maketitle
 
@@ -353,18 +355,64 @@ decimal between 0 and 1 as opposed to an integer between 0 and 255.
 We used a $240 \times 320$ pixel image of some sheep laying in a barn, and truncated the singular values
 up to the first $k \in \{100, 50, 10\}$. Running SVD to decompose the image took \textbf{1m 15s}.
 
-\begin{figure}[h]
-	\centering
-	\includegraphics{images/sheep.png}
-	\caption{The original image}
-	\label{fig:sheep}
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/sheep.png}
+    \caption{Original}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/compressed_sheep_100.png}
+    \caption{$k = 100$, $73.0\%$ compression}
+  \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/compressed_sheep_50.png}
+    \caption{$k = 50$, $36.5\%$ compression}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/compressed_sheep_10.png}
+    \caption{$k = 10$, $7.3\%$ compression}
+  \end{minipage}
 \end{figure}
 
 \begin{center}
     \textbf{Panini (the cat)}
 \end{center}
 
-On a $640 \times 480$ image of Panini, SVD took \textbf{20m 50s} to finish, 
+On a $640 \times 480$ image of Panini, SVD took \textbf{20m 50s} to finish. Here are the results 
+using the first $k \in \{150, 50, 7\}$ singular values.
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/cat.png}
+    \caption{Original}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/compressed_cat_150.png}
+    \caption{$k = 150$, $54.7\%$ compression}
+  \end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/compressed_cat_50.png}
+    \caption{$k = 50$, $18.2\%$ compression}
+  \end{minipage}
+  \hfill
+  \begin{minipage}[b]{0.4\textwidth}
+    \includegraphics[width=\textwidth]{images/compressed_cat_7.png}
+    \caption{$k = 7$, $2.6\%$ compression}
+  \end{minipage}
+\end{figure}
 
 \subsubsection{Planes of Best Fit}
 
