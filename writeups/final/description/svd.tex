@@ -1,0 +1,63 @@
+\subsection{Principle Component Analysis and SVD}
+
+Singular Value Decomposition (SVD) is a factorization of a matrix $A \in \R^{m \times n}$ into
+\[
+    A = U \Sigma V^\top
+\]
+where $U \in \R^{m \times m}$ and $V \in \R^{n \times n}$ are orthogonal matrices with 
+columns $\vect u_1, \ldots \vect u_m$ and $\vect v_1, \ldots, \vect v_n$ respectively, and $\Sigma$
+is a diagonal matrix of the form (assuming $n \leq m$)
+\[
+    \Sigma = \left[
+        \begin{array}{cccc}
+            \sigma_1 & & & \\
+            & \sigma_2 & & \\
+            & & \ddots & \\
+            & & & \sigma_n \\
+            & & & \\
+            & & & 
+        \end{array}
+    \right] \in \R^{m \times n}
+\]
+where $\sigma_1 \geq \sigma_2 \geq \cdots \geq \sigma_n \geq 0$ are the \emph{singular values} of $A$.
+This allows us to write $A$ as the linear combination
+\[
+    A = \sum_{i = 1}^n \sigma_i \vect{u}_i \vect{v}_i^\top
+\]
+Note that because the singular values are sorted in decreasing order, we can effectively ``save data'' in 
+representing $A$ by truncating all but the first $r \leq n$ singular vectors, as the last items in the sum do not 
+contribute as much to the 
+overall product. The immediate application is identifying the most significant axes of correlation in data, allowing 
+dimensionality reduction of datasets by re-writing each item in the basis $\vect{v}_1, \ldots, \vect{v}_r$.
+Commonly, the ``data'' of concern is written into the rows of $A$.
+
+\subsubsection{What we implemented}
+
+Our library implements the Golub-Kahan SVD algorithm (described in ``Matrix Computations,'' by Golub and van Loan.
+\textcolor{blue}{\autocite{golub13}}) which begins by bi-diagonalizing $A$, then performing SVD on the bidiagonalization,
+as the numerical stability and performance are better. Once we were able to compute the SVD of any matrix, we could use 
+SVD as a subroutine in other useful techniques.
+
+The (subjectively) coolest application of SVD we implemented is image compression. By taking an $m \times n$ image and 
+writing it as a 4-tuple of matrices $(R, G, B, A)$ representing the red, green, blue, and alpha channels of the pixels,
+we can perform SVD on each color channel, store only the SVD representation after truncating insignificant singular
+vectors, and then de-compress the image later by computing $U \Sigma V^\top$ for each color channel. In practice,
+one can discard roughly half the singular values and still obtain a recognizeable image. Examples of this and discussion 
+of runtime and compression rates will be left to the evaluation section.
+
+A common goal in statistics is finding the ``line of best fit'' of a set of points, or in higher dimensions,
+a $k$-dimensional plane of best fit. For a cluster of data centered at the origin, the first singular vector, $\vect v_1$,
+is the line of best fit. This is because SVD is equivalently defined as an optimization proceedure where 
+\[
+    \vect v_1 = \argmax_{\|x\| = 1} \|Ax\|
+\]
+Since $\vect v_1$ is maximizing the sum of squares of the inner products with all the data points, it is minimizing 
+the sum of squared distances from each data point to the line spanned by $\vect v_1$. More generally, taking the first 
+$\vect v_1, \ldots, \vect v_k$ vectors, we obtain a basis for a $k$-dimensional ``plane of best fit.'' 
+
+We implement a proceedure which takes a data matrix $D \in \R^{n \times m}$ whose columns are each $\R^n$ data points, 
+and returns $\vect \mu \in \R^n$ and $V \in \R^{n \times k}$ such that the plane defined by 
+\[
+    \left\{\vect \mu + \sum_{i = 1}^{k} \alpha_i \vect v_i \mid \alpha_i \in \R\right\}
+\]
+is the plane of best fit for the data. Examples of this will be left to the evaluations section.
