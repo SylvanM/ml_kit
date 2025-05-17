@@ -28,8 +28,8 @@ Thus, the output of the entire neural-network model can be simply computed as th
 The NeuralNetwork implementation within ML Kit is straightforward and exncapsulates everything needed to build, inspect, and run a feed-forward network.
 Initially, a NeuralNet holds three parallel vectors: 
 \begin{enumerate}
-  \item Weight Matrices $Vec<Matrix<f64>>$, each matrix represents the weight between two layers.
-  \item Bias Vectors, one per non-input layer. Each is stored in a column sized vector of size $m * 1$ where m is the number of neurons in said layer.
+  \item Weight Matrices \texttt{Vec<\,Matrix<f64>\,>}, each matrix represents the weight between two layers.
+  \item Bias Vectors, one per non-input layer. Each is stored in a column sized vector of size $m \times 1$ where $m$ is the number of neurons in said layer.
   \item Activation Functions, a vector of activations indicate which activation is to be used upon each layer. Sigmoid, Relu, etc. 
 \end{enumerate}
 

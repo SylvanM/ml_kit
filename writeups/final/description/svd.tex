@@ -45,7 +45,7 @@ vectors, and then de-compress the image later by computing $U \Sigma V^\top$ for
 one can discard roughly half the singular values and still obtain a recognizeable image. Examples of this and discussion 
 of runtime and compression rates will be left to the evaluation section.
 
-A common goal in statistics is finding the ``line of best fit'' of a set of points, or in higher dimensions,
+Another common goal in statistics is finding the ``line of best fit'' of a set of points, or in higher dimensions,
 a $k$-dimensional plane of best fit. For a cluster of data centered at the origin, the first singular vector, $\vect v_1$,
 is the line of best fit. This is because SVD is equivalently defined as an optimization proceedure where 
 \[
@@ -60,4 +60,5 @@ and returns $\vect \mu \in \R^n$ and $V \in \R^{n \times k}$ such that the plane
 \[
     \left\{\vect \mu + \sum_{i = 1}^{k} \alpha_i \vect v_i \mid \alpha_i \in \R\right\}
 \]
-is the plane of best fit for the data. Examples of this will be left to the evaluations section.
+is the plane of best fit for the data. This was a very minor part of our library and only consisted 
+of a few extra lines of code, but since we had the functionality to easily implement it, we figured why not?
