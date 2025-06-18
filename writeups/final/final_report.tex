@@ -1,0 +1,216 @@
+\documentclass[12pt, letterpaper]{article}
+
+\usepackage{enumitem}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage[margin=1in]{geometry}
+\usepackage{cancel}
+\usepackage{amssymb}
+\usepackage{amsfonts}
+\usepackage{amstext}
+\usepackage{amsthm}
+\usepackage{xcolor}
+\usepackage{titlesec}
+\usepackage{pgfplots}
+\usepackage{mdframed}
+\usepackage{nicefrac}
+\usepackage{dsfont}
+\usepackage{tikz}
+\usetikzlibrary{trees}
+\usepackage{mathdots}
+\usepackage{accents}
+\usepackage{mathtools}
+\usepackage{bbm}
+\usepackage{caption}
+\usepackage{float}
+
+\usepackage{import}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern}
+\usepackage[hidelinks]{hyperref}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+
+\usepackage[english]{babel}
+\usepackage{csquotes}
+
+\usepackage{xcolor}
+
+
+
+\usepackage[notes,backend=biber]{biblatex-chicago}
+
+% theorem environments
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{example}{Example}
+
+\theoremstyle{remark}
+\newtheorem*{claim}{Claim}
+\newtheorem*{remark}{Remark}
+\newtheorem*{note}{Note}
+
+\setlength{\textwidth}{6.0in}
+\setlength{\oddsidemargin}{0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\topmargin}{-0.5in}
+\setlength{\headheight}{0.25in}
+\setlength{\headsep}{0.25in}
+\setlength{\textheight}{8.5in}
+\setlength{\footskip}{20pt}
+
+\setlength{\topskip}{0in}
+
+\setcounter{secnumdepth}{0}
+
+\setlength{\parindent}{0in}	
+\setlength{\parskip}{0.1in}
+
+\newcommand{\vect}[1]{\vec{\mathbf{#1}}}
+% \newcommand{\sectionbreak}{\clearpage}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\Z}{\mathbb{Z}}
+\newcommand{\N}{\mathbb{N}}
+\renewcommand{\P}{\mathbb{P}}
+\newcommand{\F}{\mathbb{F}}
+\newcommand{\modop}{\;\text{mod}\;}
+\renewcommand{\mod}[1]{\;(\text{mod}\;#1)}
+\newcommand{\Aut}{\text{Aut}}
+\newcommand{\id}{\text{id}}
+\newcommand{\spn}{\;\text{span}}
+
+\DeclareMathOperator*{\argmax}{argmax}
+
+\newcommand{\ftntmk}{\textcolor{blue}{\footnotemark}}
+\newcommand{\black}[1]{\textcolor{black}{#1}}
+\newcommand{\ubcolor}[2]{\color{#1}{\underbrace{\color{black}{#2}}}}
+\newcommand*\circled[1]{\tikz[baseline=(char.base)]{
+            \node[shape=circle,draw,inner sep=2pt] (char) {#1};}}
+
+\newcommand{\vol}[1]{\text{vol}}
+
+\newcommand{\verteq}{\rotatebox{90}{$\,=$}}
+\newcommand{\equalto}[2]{\underset{\scriptstyle\overset{\mkern4mu\verteq}{#2}}{#1}}
+
+\newcommand{\rk}{\text{rk}\,}
+\newcommand{\Col}{\text{Col}\,}
+\newcommand{\C}{\mathbb{C}}
+\newcommand{\Q}{\mathbb{Q}}
+\newcommand{\actson}{\curvearrowright}
+
+\newcommand{\E}{\mathbb{E}}
+
+\renewcommand{\mapsto}{\longmapsto}
+
+% James - Parentheses, brackets, etc.
+\newcommand{\ignore}[1]{}  % from Charles
+\newcommand{\parens}[1]{\ensuremath{\left( #1 \right)}}
+\newcommand{\bracks}[1]{\ensuremath{\left[ #1 \right]}}
+\newcommand{\braces}[1]{\ensuremath{\left\{ #1 \right\}}}
+\newcommand{\angbrs}[1]{\ensuremath{\langle #1 \rangle}}
+\newcommand{\set}[1]{\braces{#1}}
+\newcommand{\powset}[1]{\mathcal{P}\parens{#1}}
+\newcommand{\vspan}[1]{\angbrs{#1}}  % 4330: Span of a set of vectors
+
+\newcommand{\floor}[1]{\left\lfloor #1 \right\rfloor}
+\newcommand{\ceil}[1]{\left\lceil #1 \right\rceil}
+\newcommand{\verts}[1]{\left\lvert #1 \right\rvert} % | #1 |
+\newcommand{\Verts}[1]{\left\lVert #1 \right\rVert} % || #1 ||
+\newcommand{\abs}[1]{\verts{#1}}
+\newcommand{\size}[1]{\verts{#1}}
+\newcommand{\norm}[1]{\Verts{#1}}
+\newcommand{\eps}{\varepsilon}
+\newcommand{\vphi}{\varphi}
+\renewcommand{\Re}{\mathrm{Re}}
+\renewcommand{\Im}{\mathrm{Im}}
+
+\newcommand{\bmat}[1]{\begin{bmatrix} #1 \end{bmatrix}}
+\newcommand{\pmat}[1]{\begin{pmatrix} #1 \end{pmatrix}}
+
+\bibliography{bibliography}
+
+\title{ML Kit: A Machine Learning Library for Rust}
+
+\author{Owen Wetherbee (ocw6), Ethan Ma (em834), Sylvan Martin (slm338)}
+\date{}
+
+
+% Body
+
+\pgfplotsset{compat=1.16}
+\begin{document}
+\captionsetup{labelformat=empty,labelsep=none}
+
+\maketitle
+
+\begin{center}
+    \textbf{Keywords:} Machine learning, Gradient Descent, PCA, Rust
+\end{center}
+
+\textbf{Source Code:} \url{https://github.com/SylvanM/ml_kit}
+
+\textbf{Presentation:} \url{https://youtu.be/dLAc-HP8XBQ}
+
+\subsubsection*{Application Setting}
+
+Rust is a relatively new programming language with a dearth of machine learning infrastructure. We aimed to 
+create a library for Rust programmers to make machine learning convenient, much like NumPy or TensorFlow in Python.
+
+\section{Project Description}
+
+Initially, we wanted to create a comprehensive machine learning library for Rust, which would use Rust's safety
+and speed to implement many algorithms used in data science. We had the original (lofty) goal of being able to 
+run a diffusion model by the end of the semester, or be able to do anything that NumPy/SciKitLearn could do. As 
+we began implementation we recognized that we lacked the time and resources to implement the sheer amount of algorithms 
+we set out to. So, we shifted our focus to what we believe are some of the core algorithms in the field of 
+Machine Learning.
+
+In the end, we created the pure-Rust library \texttt{ml\_kit}, which implements, from scratch, the following:
+\begin{itemize}
+    \item Neural Network based learning, consisting of
+    \begin{itemize}
+        \item the basic neural network model with user-defined network shape and activation functions 
+        for each layer
+        \item functionality for handling large datasets for training and testing
+        \item a stochastic gradient descent trainer, with whatever batch size and epochs a user may want
+        \item various ``gradient update schedules,'' such as fixed learning rates, time-decay learning rates, AdaGrad, etc.
+        \item Convolutional Neural Networks
+    \end{itemize}
+    \item Principle Component Analysis, consisting of
+    \begin{itemize}
+        \item an implementation of Singular Value Decomposition (SVD),
+        \item using SVD to obtain a $k$-dimensional plane of best fit for a set of points in $\R^n$,
+        \item compressing images (or any data) using SVD by truncating low-variance dimensions
+    \end{itemize}
+\end{itemize}
+
+\input{description/neuralnets.tex}
+
+\input{description/svd}
+
+\subsection{Relationship to Other Work}
+
+Linear algebra is the foundatin to machine learning, so we needed to use a good linear algebra library. Sylvan had 
+previously spent winter break working on \texttt{matrix\_kit}, which is a pure-Rust linear algebra package that 
+implemented incredibly basic matrix-vector operations. We continued developing this library in parallel with 
+\texttt{ml\_kit} over the semester as we recognized more features that were needed from the linear algebra library. 
+So, the sum of our work for the course can be thought of as the entirety of \texttt{ml\_kit}, as well as significant
+improvement to the functionality of \texttt{matrix\_kit}.
+
+The \texttt{matrix\_kit} library can be found on GitHub at \url{https://github.com/SylvanM/matrix_kit}.
+
+\section{Evaluation}
+
+\input{evaluation/neuralnets.tex}
+
+\input{evaluation/svd.tex}
+
+\printbibliography
+
+\end{document}

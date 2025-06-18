@@ -1,0 +1,146 @@
+% $ biblatex auxiliary file $
+% $ biblatex bbl format version 3.1 $
+% Do not modify the above lines!
+%
+% This is an auxiliary file used by the 'biblatex' package.
+% This file may safely be deleted. It will be recreated by
+% biber as required.
+%
+\begingroup
+\makeatletter
+\@ifundefined{ver@biblatex.sty}
+  {\@latex@error
+     {Missing 'biblatex' package}
+     {The bibliography requires the 'biblatex' package.}
+      \aftergroup\endinput}
+  {}
+\endgroup
+
+
+\refsection{0}
+  \datalist[entry]{cms/global//global/global}
+    \entry{Making_faster}{misc}{}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{month}{12}
+      \field{year}{2019}
+      \verb{urlraw}
+      \verb https://leonardoaraujosantos.gitbook.io/artificial-inteligence/machine_learning/deep_learning/convolution_layer/making_faster
+      \endverb
+      \verb{url}
+      \verb https://leonardoaraujosantos.gitbook.io/artificial-inteligence/machine_learning/deep_learning/convolution_layer/making_faster
+      \endverb
+    \endentry
+    \entry{MNIST_Dataset}{misc}{}
+      \field{sortinit}{0}
+      \field{sortinithash}{c5602f03f17cc894ea7a6362c3cb0e13}
+      \verb{urlraw}
+      \verb https://www.kaggle.com/datasets/hojjatk/mnist-dataset
+      \endverb
+      \verb{url}
+      \verb https://www.kaggle.com/datasets/hojjatk/mnist-dataset
+      \endverb
+    \endentry
+    \entry{golub13}{book}{}
+      \name{author}{2}{}{%
+        {{hash=8b856da92ad549d323acc679ecf7f474}{%
+           family={Golub},
+           familyi={G\bibinitperiod},
+           given={Gene\bibnamedelima H.},
+           giveni={G\bibinitperiod\bibinitdelim H\bibinitperiod}}}%
+        {{hash=701dffbe58a1ce899093fee54a7fc6e7}{%
+           family={Loan},
+           familyi={L\bibinitperiod},
+           given={Charles\bibnamedelima F.},
+           giveni={C\bibinitperiod\bibinitdelim F\bibinitperiod},
+           prefix={van},
+           prefixi={v\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {JHU Press}%
+      }
+      \strng{namehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{fullhash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{bibnamehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{authorbibnamehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{authornamehash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \strng{authorfullhash}{e1bcf75598401ae00e4c2d599e2dde3b}
+      \field{sortinit}{G}
+      \field{sortinithash}{32d67eca0634bf53703493fb1090a2e8}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{edition}{Fourth}
+      \field{isbn}{1421407949 9781421407944}
+      \field{title}{Matrix Computations}
+      \field{year}{2013}
+      \verb{urlraw}
+      \verb http://www.cs.cornell.edu/cv/GVL4/golubandvanloan.htm
+      \endverb
+      \verb{url}
+      \verb http://www.cs.cornell.edu/cv/GVL4/golubandvanloan.htm
+      \endverb
+      \keyw{GvL cauchy circulant courant-fischer determinant dft eigenvalues interlacing linear.algebra matrix pseudoinverse textbook}
+    \endentry
+    \entry{Nielsen_2015}{article}{}
+      \name{author}{1}{}{%
+        {{hash=afe17482fc813e497188aee3b3783879}{%
+           family={Nielsen},
+           familyi={N\bibinitperiod},
+           given={Michael\bibnamedelima A.},
+           giveni={M\bibinitperiod\bibinitdelim A\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {Determination Press}%
+      }
+      \strng{namehash}{afe17482fc813e497188aee3b3783879}
+      \strng{fullhash}{afe17482fc813e497188aee3b3783879}
+      \strng{bibnamehash}{afe17482fc813e497188aee3b3783879}
+      \strng{authorbibnamehash}{afe17482fc813e497188aee3b3783879}
+      \strng{authornamehash}{afe17482fc813e497188aee3b3783879}
+      \strng{authorfullhash}{afe17482fc813e497188aee3b3783879}
+      \field{sortinit}{N}
+      \field{sortinithash}{22369a73d5f88983a108b63f07f37084}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Neural Networks and Deep Learning}
+      \field{year}{2015}
+      \verb{urlraw}
+      \verb http://neuralnetworksanddeeplearning.com
+      \endverb
+      \verb{url}
+      \verb http://neuralnetworksanddeeplearning.com
+      \endverb
+    \endentry
+    \entry{Solai_2018}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=c514f3915c2492d6f44eb7dd6af317fc}{%
+           family={Solai},
+           familyi={S\bibinitperiod},
+           given={Pavithra},
+           giveni={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{c514f3915c2492d6f44eb7dd6af317fc}
+      \strng{fullhash}{c514f3915c2492d6f44eb7dd6af317fc}
+      \strng{bibnamehash}{c514f3915c2492d6f44eb7dd6af317fc}
+      \strng{authorbibnamehash}{c514f3915c2492d6f44eb7dd6af317fc}
+      \strng{authornamehash}{c514f3915c2492d6f44eb7dd6af317fc}
+      \strng{authorfullhash}{c514f3915c2492d6f44eb7dd6af317fc}
+      \field{sortinit}{S}
+      \field{sortinithash}{b164b07b29984b41daf1e85279fbc5ab}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Medium}
+      \field{month}{4}
+      \field{title}{Convolutions and Backpropagations}
+      \field{year}{2018}
+      \verb{urlraw}
+      \verb https://pavisj.medium.com/convolutions-and-backpropagations-46026a8f5d2c
+      \endverb
+      \verb{url}
+      \verb https://pavisj.medium.com/convolutions-and-backpropagations-46026a8f5d2c
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
+\endinput
+
