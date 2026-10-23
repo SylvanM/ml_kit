@@ -5,6 +5,7 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 description = "A Machine Learning library for Rust"
 readme = "README.md"
+exclude = ["/testing", "/writeups"]
 
 [dependencies]
 byteorder = "1.5.0"
