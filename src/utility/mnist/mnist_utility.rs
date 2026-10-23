@@ -1,4 +1,3 @@
-use idx_parser::IDXFile;
 use matrix_kit::dynamic::matrix::Matrix;
 use std::{fmt::Debug, fs::File, io::prelude::*};
 
@@ -68,63 +67,62 @@ impl DataItem for MNISTImage {
 
 pub fn load_mnist(relative_path: &str, prefix: &str) -> DataSet<MNISTImage> {
     // get image data
-    let mut buf: Vec<u8> = vec![];
-    let mut file = File::open(format!("{}/{}-images.idx3-ubyte", relative_path, prefix)).unwrap();
-    file.read_to_end(&mut buf).unwrap();
-    let images_idx: IDXFile = IDXFile::from_bytes(buf).unwrap();
-    let n_rows: usize = images_idx.dimensions[1].try_into().unwrap();
-    let n_cols: usize = images_idx.dimensions[2].try_into().unwrap();
+    let (dimensions, pixels) =
+        read_idx_bytes(&format!("{}/{}-images.idx3-ubyte", relative_path, prefix));
+    assert_eq!(dimensions.len(), 3, "MNIST parsing error: images file isn't 3-dimensional");
+    let (n_images, n_rows, n_cols) = (dimensions[0], dimensions[1], dimensions[2]);
 
     // get label data
-    let mut buf: Vec<u8> = vec![];
-    let mut file = File::open(format!("{}/{}-labels.idx1-ubyte", relative_path, prefix)).unwrap();
-    file.read_to_end(&mut buf).unwrap();
-    let labels_idx = IDXFile::from_bytes(buf).unwrap();
+    let (_, labels) = read_idx_bytes(&format!("{}/{}-labels.idx1-ubyte", relative_path, prefix));
+    assert_eq!(labels.len(), n_images, "MNIST parsing error: number of labels and images differ");
 
     let mut data: Vec<MNISTImage> = vec![];
 
     // loop through each image
-    for i in 0..images_idx.matrix_data.len() {
-        // set label
-        let label: u8 = (*labels_idx.matrix_data[i])
-            .clone()
-            .try_into()
-            .expect("MNIST parsing error");
-
-        // initialize flattened matrix of image data
-        let mut flattened: Vec<f64> = vec![];
-
-        // vector of rows of matrix
-        let rows: Vec<Box<idx_parser::matrix::Matrix>> = (*images_idx.matrix_data[i])
-            .clone()
-            .try_into()
-            .expect("MNIST parsing error");
-
-        // loop through each row of matrix
-        for row in rows {
-            // vector of entries of current row of matrix
-            let inner_rows: Vec<Box<idx_parser::matrix::Matrix>> =
-                (*row).clone().try_into().expect("MNIST parsing error");
-
-            // loop through each entry of current row of matrix
-            for inner_row in inner_rows {
-                let val: u8 = (*inner_row)
-                    .clone()
-                    .try_into()
-                    .expect("MNIST parsing error"); // get entry value
-
-                flattened.push((val as f64) / 255.0); // add entry to flattened matrix
-            }
-        }
+    for i in 0..n_images {
+        // the image's pixels, one row after another
+        let image_bytes = &pixels[(i * n_rows * n_cols)..((i + 1) * n_rows * n_cols)];
+        let flattened: Vec<f64> = image_bytes.iter().map(|&val| (val as f64) / 255.0).collect();
 
         let image = Matrix::from_flatmap(n_rows, n_cols, flattened); // create matrix of image data
         data.push(MNISTImage {
-            correct_digit: label as usize,
+            correct_digit: labels[i] as usize,
             image_matrix: image,
         }); // add label and image to vector of output data
     }
 
     DataSet { data_items: data }
+}
+
+/// Reads an IDX file of unsigned bytes (the format of the MNIST files),
+/// returning the size of each dimension along with the data.
+///
+/// The file starts with two zero bytes, a byte for the data type (0x08 means
+/// unsigned bytes), and a byte for the number of dimensions. Then comes each
+/// dimension's size as a big-endian u32, then the data in row-major order.
+fn read_idx_bytes(path: &str) -> (Vec<usize>, Vec<u8>) {
+    let mut bytes: Vec<u8> = vec![];
+    let mut file = File::open(path).expect(&format!("Unable to open MNIST file at path {:?}", path));
+    file.read_to_end(&mut bytes).unwrap();
+
+    assert!(
+        bytes.len() >= 4 && bytes[0] == 0 && bytes[1] == 0,
+        "MNIST parsing error: {:?} isn't an IDX file", path
+    );
+    assert_eq!(bytes[2], 0x08, "MNIST parsing error: {:?} doesn't hold unsigned bytes", path);
+
+    let data_start = 4 + 4 * bytes[3] as usize;
+    assert!(bytes.len() >= data_start, "MNIST parsing error: {:?} is cut off", path);
+
+    let dimensions: Vec<usize> = bytes[4..data_start]
+        .chunks_exact(4)
+        .map(|size| u32::from_be_bytes([size[0], size[1], size[2], size[3]]) as usize)
+        .collect();
+
+    let data_size: usize = dimensions.iter().product();
+    assert!(bytes.len() >= data_start + data_size, "MNIST parsing error: {:?} is cut off", path);
+
+    (dimensions, bytes[data_start..(data_start + data_size)].to_vec())
 }
 
 #[cfg(test)]
