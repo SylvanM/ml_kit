@@ -152,6 +152,7 @@ impl NNGradient {
 
         for layer in 0..self.derivatives.weights.len() {
             norm_squared += self.derivatives.weights[layer].l2_norm_squared();
+            norm_squared += self.derivatives.biases[layer].l2_norm_squared();
         }
 
         norm_squared.sqrt()
@@ -159,6 +160,10 @@ impl NNGradient {
 
     pub fn set_length(&mut self, length: f64) {
         let norm = self.norm();
+        if norm == 0.0 {
+            return;
+        }
+
         for layer in 0..self.derivatives.weights.len() {
             self.derivatives.weights[layer] /= norm;
             self.derivatives.weights[layer] *= length;

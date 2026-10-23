@@ -44,12 +44,22 @@ impl Perceptron {
         Matrix::from_flatmap(1, 1, vec![y_hat])
     }
 
+    /// Counts how many columns of `x` this perceptron classifies correctly
+    fn count_correct(&self, x: &Matrix<f64>, y: &Matrix<f64>) -> usize {
+        (0..x.col_count())
+            .filter(|&i| {
+                let x_i = x.get_submatrix(0..x.row_count(), i..(i + 1));
+                Self::step(self.raw_activation(&x_i)) == y.get(0, i)
+            })
+            .count()
+    }
+
     pub fn train(&mut self, x: &Matrix<f64>, y: &Matrix<f64>, epochs: usize) {
         let n = x.col_count();
 
         let mut best_w = self.weight.clone();
         let mut best_b = self.bias.clone();
-        let mut best_correct = 0;
+        let mut best_correct = self.count_correct(x, y);
 
         for _ in 0..epochs {
             let mut misclassified = 0;
@@ -79,7 +89,9 @@ impl Perceptron {
                 }
             }
 
-            let correct = n - misclassified;
+            // Score the weights we ended the epoch with, and keep the best
+            // ones we've seen in our "pocket"
+            let correct = self.count_correct(x, y);
             if correct > best_correct {
                 best_correct = correct;
                 best_w = self.weight.clone();
@@ -90,6 +102,10 @@ impl Perceptron {
                 break;
             }
         }
+
+        // Use the best weights we found, not just the most recent ones
+        self.weight = best_w;
+        self.bias = best_b;
     }
 
     /// Mark: Getters

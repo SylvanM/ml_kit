@@ -4,8 +4,6 @@
 //! This uses the algorithms described in Golub and van Loan
 //!
 
-use core::f64;
-
 use matrix_kit::dynamic::matrix::Matrix;
 
 /// Algorithm 5.1.1 (Householder vector) from Golub and van Loan
@@ -21,7 +19,7 @@ fn house(x: Matrix<f64>) -> (Matrix<f64>, f64) {
     if sigma == 0.0 && x1 >= 0.0 {
         beta = 0.0;
     } else if sigma == 0.0 && x1 < 0.0 {
-        beta = -2.0;
+        beta = 2.0;
     } else {
         let mu = (x1.powf(2.0) + sigma).sqrt();
         
@@ -220,6 +218,28 @@ fn givens_leftmult(matrix: &mut Matrix<f64>, k: usize, c: f64, s: f64) {
     }
 }
 
+/// Like `givens_leftmult`, but rotates rows `i` and `j`, which don't have to
+/// be next to each other.
+fn givens_leftmult_rows(matrix: &mut Matrix<f64>, i: usize, j: usize, c: f64, s: f64) {
+    for col in 0..matrix.col_count() {
+        let t1 = matrix.get(i, col);
+        let t2 = matrix.get(j, col);
+        matrix.set(i, col, c * t1 - s * t2);
+        matrix.set(j, col, s * t1 + c * t2);
+    }
+}
+
+/// Like `givens_rightmult`, but rotates columns `i` and `j`, which don't have
+/// to be next to each other.
+fn givens_rightmult_cols(matrix: &mut Matrix<f64>, i: usize, j: usize, c: f64, s: f64) {
+    for row in 0..matrix.row_count() {
+        let t1 = matrix.get(row, i);
+        let t2 = matrix.get(row, j);
+        matrix.set(row, i, c * t1 - s * t2);
+        matrix.set(row, j, s * t1 + c * t2);
+    }
+}
+
 /// Algorithm 8.6.1 from Golub and van Loan
 /// 
 /// This takes in a bidiagonal matrix B, represented as a vector of the 
@@ -245,37 +265,26 @@ fn golub_kahan_step(
     let n_b22 = diagonal.len();
     let m_b22 = superdiagonal.len();
 
-    let lambda = { // a 2x2 matrix, so we'll do something different.
-        
-        let b = if m_b22 == 1 {
-            -diagonal[0].powf(2.0) - superdiagonal[0].powf(2.0) 
-            -diagonal[1].powf(2.0)
+    // This is the Wilkinson shift: the eigenvalue of the trailing 2x2 submatrix
+    // of T that's closest to its last entry. It uses the formula from Golub and
+    // van Loan (Algorithm 8.3.2) instead of the quadratic formula, which loses
+    // its accuracy when the two eigenvalues are close, and can even take the
+    // square root of a negative number and turn everything into NaN.
+    let lambda = {
+        let t11 = diagonal[n_b22 - 2].powf(2.0) + if n_b22 > 2 {
+            superdiagonal[m_b22 - 2].powf(2.0)
         } else {
-            -diagonal[m_b22 - 1].powf(2.0) - superdiagonal[m_b22 - 2].powf(2.0)
-            -diagonal[n_b22 - 1].powf(2.0) - superdiagonal[m_b22 - 1].powf(2.0)
+            0.0
         };
+        let t12 = diagonal[n_b22 - 2] * superdiagonal[m_b22 - 1];
+        let t22 = diagonal[n_b22 - 1].powf(2.0) + superdiagonal[m_b22 - 1].powf(2.0);
 
-        let c = if m_b22 == 1 {
-            (diagonal[0].powf(2.0) * superdiagonal[0].powf(2.0)) +
-            (diagonal[1].powf(2.0) * diagonal[0].powf(2.0)) - 
-            (superdiagonal[0].powf(2.0) * diagonal[0] * superdiagonal[0])
+        let d = (t11 - t22) / 2.0;
+        if t12 == 0.0 {
+            t22
         } else {
-            (diagonal[m_b22 - 1].powf(2.0) * diagonal[n_b22 - 1].powf(2.0)) +
-            (diagonal[n_b22 - 1].powf(2.0) * superdiagonal[m_b22 - 2].powf(2.0)) +
-            (superdiagonal[m_b22 - 2].powf(2.0) * superdiagonal[m_b22 - 1].powf(2.0))
-        };
-
-        let lambda_1 = (-b + (b.powf(2.0) - 4.0 * c).sqrt()) / 2.0;
-        let lambda_2 = (-b - (b.powf(2.0) - 4.0 * c).sqrt()) / 2.0;
-
-        let target = diagonal[n_b22 - 1].powf(2.0) + superdiagonal[m_b22 - 1].powf(2.0);
-
-        if (target - lambda_1).abs() < (target - lambda_2).abs() {
-            lambda_1 
-        } else { 
-            lambda_2 
+            t22 - t12.powf(2.0) / (d + d.signum() * d.hypot(t12))
         }
-
     };
 
     let mut y = diagonal[0].powf(2.0) - lambda;
@@ -360,11 +369,16 @@ fn tall_svd_factorization(matrix: &Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Ma
 
     let mut i = 0;
 
+    // Diagonal entries of B smaller than this count as zero
+    let zero_tolerance = 100.0 * f64::EPSILON * b.l2_norm_squared().sqrt();
+
     while q < n {
         i += 1;
-        // For numerical stability, zero out some stuff
+        // For numerical stability, zero out some stuff. This needs a small multiple
+        // of epsilon: with just epsilon, a block whose two singular values are
+        // equal can get stuck forever.
         for i in 0..(n - 1) {
-            if b.get(i, i + 1).abs() <= f64::EPSILON * (b.get(i, i).abs() + b.get(i + 1, i + 1).abs()) {
+            if b.get(i, i + 1).abs() <= 100.0 * f64::EPSILON * (b.get(i, i).abs() + b.get(i + 1, i + 1).abs()) {
                 b.set(i, i + 1, 0.0);
             }
         }
@@ -393,19 +407,38 @@ fn tall_svd_factorization(matrix: &Matrix<f64>) -> (Matrix<f64>, Matrix<f64>, Ma
 
         if q < n {
             // If any diagonal entry of B22 is zero, zero-out the superdiagonal
-            // entry in the same row
-            let mut found_zero_diag = false;
-            for i in p..(n - q) {
-                if b.get(i, i) == 0.0 { 
-                    found_zero_diag = true;
-                    if i < n - 1 {
-                        b.set(i, i + 1, 0.0);
+            // entry in the same row. This has to be done with Givens rotations
+            // (updating U and V to match). Just setting the entry to 0 changes
+            // the matrix we're factoring.
+            let end = n - q - 1;
+            let zero_diag = (p..=end).find(|&k| b.get(k, k).abs() <= zero_tolerance);
+
+            match zero_diag {
+                Some(k) if k < end => {
+                    // Chase row k's superdiagonal entry to the right, until it
+                    // falls off the end of B22
+                    b.set(k, k, 0.0);
+                    for j in (k + 1)..=end {
+                        let (c, s) = determine_givens(b.get(j, j), b.get(k, j));
+                        givens_leftmult_rows(&mut b, j, k, c, s);
+                        givens_rightmult_cols(&mut u, j, k, c, s);
+                        b.set(k, j, 0.0);
                     }
                 }
-            }
-
-            if !found_zero_diag {
-                golub_kahan_step(&mut b, &mut u, &mut v, q, p);
+                Some(_) => {
+                    // The last diagonal entry is zero, so chase the entry above
+                    // it up the last column instead
+                    b.set(end, end, 0.0);
+                    for j in (p..end).rev() {
+                        let (c, s) = determine_givens(b.get(j, j), b.get(j, end));
+                        givens_rightmult_cols(&mut b, j, end, c, s);
+                        givens_rightmult_cols(&mut v, j, end, c, s);
+                        b.set(j, end, 0.0);
+                    }
+                }
+                None => {
+                    golub_kahan_step(&mut b, &mut u, &mut v, q, p);
+                }
             }
         }
 

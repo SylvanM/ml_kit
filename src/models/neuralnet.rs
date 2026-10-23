@@ -205,7 +205,7 @@ impl NeuralNet {
     /// Computes the network's classification of a particular item, along with its confidence
     pub fn classify(&self, input: Matrix<f64>) -> (usize, f64) {
         let mut c = 0;
-        let mut max = 0.0;
+        let mut max = f64::NEG_INFINITY;
 
         let output = self.compute_final_layer(input);
 
