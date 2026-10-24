@@ -7,7 +7,7 @@
 use matrix_kit::dynamic::matrix::Matrix;
 
 /// Algorithm 5.1.1 (Householder vector) from Golub and van Loan
-fn house(x: Matrix<f64>) -> (Matrix<f64>, f64) {
+pub(crate) fn house(x: Matrix<f64>) -> (Matrix<f64>, f64) {
     let x1 = x.get(0, 0);
     let x_2m = x.get_submatrix(1..x.row_count(), 0..1);
     let sigma = x_2m.inner_product(&x_2m);
@@ -87,9 +87,10 @@ fn householder_bidiag(
         // println!("Are we orthogonal? {:?}", householder_matrix.clone() * householder_matrix.transpose());
         big_u = householder_matrix * big_u;
 
-        // Might have an issue if the matrix has 1 column, but why are we trynna
-        // bidiagonalize that?
-        if j < n - 2 {
+        // This is written as j + 2 < n rather than j < n - 2, which underflows
+        // when the matrix has a single column (as in a linear regression with
+        // one feature)
+        if j + 2 < n {
             let (v, beta) = house(
                 workmatrix.get_submatrix(j..(j + 1), (j + 1)..n).transpose()
             );
@@ -144,7 +145,7 @@ fn householder_bidiag(
     }
 
     // Now, shall we compute big_v??? Man this will be scary!
-    for j in (0..n - 2).rev() {
+    for j in (0..n.saturating_sub(2)).rev() {
         // For each vector below the diagonal, we turn this into a 
         // householder rotation and apply it to U
         

@@ -541,7 +541,7 @@ dependencies = [
 
 [[package]]
 name = "ml_kit"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "byteorder",
  "flate2",
